@@ -1,0 +1,32 @@
+{
+  "name": "vite-tsconfig-paths",
+  "version": "1.0.0",
+  "description": "Vite resolver for TypeScript compilerOptions.paths",
+  "main": "dist/index.js",
+  "author": "aleclarson",
+  "repository": "aleclarson/vite-tsconfig-paths",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "tsconfig-paths": "^3.9.0"
+  },
+  "devDependencies": {
+    "prettier": "^2.0.5",
+    "typescript": "^3.9.7"
+  },
+  "peerDependencies": {
+    "vite": "*"
+  },
+  "keywords": [
+    "vite",
+    "resolver",
+    "tsconfig",
+    "paths"
+  ],
+  "files": [
+    "src",
+    "dist"
+  ]
+}
