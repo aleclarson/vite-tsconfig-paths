@@ -25,6 +25,8 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
     export default config
     ```
 
+**Note:** You need to restart Vite when you update your `paths` mappings.
+
 &nbsp;
 
 ## Donate
