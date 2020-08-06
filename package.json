@@ -10,11 +10,14 @@
     "build": "tsc -p ."
   },
   "dependencies": {
+    "debug": "^4.1.1",
     "tsconfig-paths": "^3.9.0"
   },
   "devDependencies": {
+    "@types/node": "^14.0.27",
     "prettier": "^2.0.5",
-    "typescript": "^3.9.7"
+    "typescript": "^3.9.7",
+    "vite": "^1.0.0-rc.4"
   },
   "peerDependencies": {
     "vite": "*"
