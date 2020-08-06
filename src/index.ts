@@ -16,12 +16,16 @@ if (config.resultType == 'failed') {
     config.mainFields || mainFields,
     config.addMatchAll
   )
+  const resolved = new Map<string, string>()
   resolver = {
     alias(id) {
-      let path = matchPath(id, undefined, undefined, supportedExts)
-      if (path) {
-        path = '/' + relative(process.cwd(), path)
-        debug(`resolved "${id}" to "${path}"`)
+      let path = resolved.get(id)
+      if (!path) {
+        path = matchPath(id, undefined, undefined, supportedExts)
+        if (path) {
+          resolved.set(id, (path = '/' + relative(process.cwd(), path)))
+          debug(`resolved "${id}" to "${path}"`)
+        }
       }
       return path
     },
