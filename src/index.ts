@@ -19,7 +19,7 @@ type PluginOptions = {
   extensions?: string[]
 }
 
-export default (opts: PluginOptions): Plugin => ({
+export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
   configResolved({ root, logger }) {
