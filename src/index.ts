@@ -42,7 +42,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
         config.addMatchAll
       )
       const resolved = new Map<string, string>()
-      this.resolveId = (id) => {
+      this.resolveId = async function (id, importer) {
         if (!importer || !/\.tsx?$/.test(importer)) {
           return null
         }
@@ -50,8 +50,16 @@ export default (opts: PluginOptions = {}): Plugin => ({
         if (!path && isLocalDescendant(importer, root)) {
           path = matchPath(id, undefined, undefined, opts.extensions)
           if (path) {
-            resolved.set(id, (path = '/' + relative(process.cwd(), path)))
-            debug(`resolved "${id}" to "${path}"`)
+            path = '/' + relative(process.cwd(), path)
+
+            const resolution = await this.resolve(path, importer, {
+              skipSelf: true,
+            })
+
+            if (resolution) {
+              resolved.set(id, (path = resolution.id))
+              debug(`resolved "${id}" to "${path}"`)
+            }
           }
         }
         return path
