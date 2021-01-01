@@ -21,6 +21,7 @@ type PluginOptions = {
 
 export default (opts: PluginOptions): Plugin => ({
   name: 'vite:tsconfig-paths',
+  enforce: 'pre',
   configResolved({ root, logger }) {
     const config = loadConfig(opts.root || root)
     if (config.resultType == 'failed') {
