@@ -1,35 +1,55 @@
+import type { Plugin } from 'vite'
 import { relative } from 'path'
 import { createMatchPath, loadConfig } from 'tsconfig-paths'
-import { mainFields, supportedExts, Resolver } from 'vite/dist/node/resolver'
 
 const debug = require('debug')('vite-tsconfig-paths')
 
-let resolver: Resolver = {}
-
-const config = loadConfig()
-if (config.resultType == 'failed') {
-  console.warn('[vite-tsconfig-paths]', config.message)
-} else if (config.paths) {
-  const matchPath = createMatchPath(
-    config.absoluteBaseUrl,
-    config.paths,
-    config.mainFields || mainFields,
-    config.addMatchAll
-  )
-  const resolved = new Map<string, string>()
-  resolver = {
-    alias(id) {
-      let path = resolved.get(id)
-      if (!path) {
-        path = matchPath(id, undefined, undefined, supportedExts)
-        if (path) {
-          resolved.set(id, (path = '/' + relative(process.cwd(), path)))
-          debug(`resolved "${id}" to "${path}"`)
-        }
-      }
-      return path
-    },
-  }
+type PluginOptions = {
+  /**
+   * The root directory to load `tsconfig.json` from.
+   *
+   * @default viteConfig.root
+   */
+  root?: string
+  /**
+   * File extensions to search for.
+   *
+   * @default Object.keys(require.extensions)
+   */
+  extensions?: string[]
 }
 
-export default resolver
+export default (opts: PluginOptions): Plugin => ({
+  name: 'vite:tsconfig-paths',
+  configResolved({ root, logger }) {
+    const config = loadConfig(opts.root || root)
+    if (config.resultType == 'failed') {
+      logger.warn(`[vite-tsconfig-paths] ${config.message}`)
+    } else if (config.paths) {
+      const matchPath = createMatchPath(
+        config.absoluteBaseUrl,
+        config.paths,
+        config.mainFields || [
+          'module',
+          'jsnext',
+          'jsnext:main',
+          'browser',
+          'main',
+        ],
+        config.addMatchAll
+      )
+      const resolved = new Map<string, string>()
+      this.resolveId = (id) => {
+        let path = resolved.get(id)
+        if (!path) {
+          path = matchPath(id, undefined, undefined, opts.extensions)
+          if (path) {
+            resolved.set(id, (path = '/' + relative(process.cwd(), path)))
+            debug(`resolved "${id}" to "${path}"`)
+          }
+        }
+        return path
+      }
+    }
+  },
+})
