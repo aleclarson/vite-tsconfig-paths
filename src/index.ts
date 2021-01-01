@@ -40,6 +40,9 @@ export default (opts: PluginOptions): Plugin => ({
       )
       const resolved = new Map<string, string>()
       this.resolveId = (id) => {
+        if (!importer || !/\.tsx?$/.test(importer)) {
+          return null
+        }
         let path = resolved.get(id)
         if (!path) {
           path = matchPath(id, undefined, undefined, opts.extensions)
