@@ -14,7 +14,7 @@ type PluginOptions = {
   /**
    * File extensions to search for.
    *
-   * @default Object.keys(require.extensions)
+   * @default .ts | .tsx | .js | .jsx | .json
    */
   extensions?: string[]
 }
@@ -48,7 +48,12 @@ export default (opts: PluginOptions = {}): Plugin => ({
         }
         let path = resolved.get(id)
         if (!path && isLocalDescendant(importer, root)) {
-          path = matchPath(id, undefined, undefined, opts.extensions)
+          path = matchPath(
+            id,
+            undefined,
+            undefined,
+            opts.extensions || defaultExtensions
+          )
           if (path) {
             path = '/' + relative(process.cwd(), path)
 
@@ -74,3 +79,5 @@ const nodeModulesRE = /\bnode_modules\b/
 function isLocalDescendant(path: string, root: string) {
   return path.startsWith(root) && !nodeModulesRE.test(path.slice(root.length))
 }
+
+const defaultExtensions = ['.ts', '.tsx', '.js', '.jsx', '.json']
