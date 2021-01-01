@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite'
-import { relative } from 'path'
+import { relative, resolve, sep } from 'path'
 import { createMatchPath, loadConfig } from 'tsconfig-paths'
 
 const debug = require('debug')('vite-tsconfig-paths')
@@ -23,7 +23,9 @@ export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
   configResolved({ root, logger }) {
-    const config = loadConfig(opts.root || root)
+    root = resolve(opts.root || root) + sep
+
+    const config = loadConfig(root)
     if (config.resultType == 'failed') {
       logger.warn(`[vite-tsconfig-paths] ${config.message}`)
     } else if (config.paths) {
@@ -45,7 +47,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
           return null
         }
         let path = resolved.get(id)
-        if (!path) {
+        if (!path && isLocalDescendant(importer, root)) {
           path = matchPath(id, undefined, undefined, opts.extensions)
           if (path) {
             resolved.set(id, (path = '/' + relative(process.cwd(), path)))
@@ -57,3 +59,10 @@ export default (opts: PluginOptions = {}): Plugin => ({
     }
   },
 })
+
+const nodeModulesRE = /\bnode_modules\b/
+
+/** Returns true when `path` is within `root` and not an installed dependency. */
+function isLocalDescendant(path: string, root: string) {
+  return path.startsWith(root) && !nodeModulesRE.test(path.slice(root.length))
+}
