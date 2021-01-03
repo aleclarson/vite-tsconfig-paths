@@ -16,10 +16,12 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
     ```ts
     import type { UserConfig } from 'vite'
-    import tsResolver from 'vite-tsconfig-paths'
+    import tsconfigPaths from 'vite-tsconfig-paths'
 
     const config: UserConfig = {
-      resolvers: [tsResolver],
+        plugins: [
+            tsconfigPaths(),
+        ],
     }
 
     export default config
