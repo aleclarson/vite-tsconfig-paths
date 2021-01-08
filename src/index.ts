@@ -1,5 +1,4 @@
-import type { Plugin } from 'vite'
-import { relative, resolve, sep } from 'path'
+import { normalizePath, Plugin } from 'vite'
 import { createMatchPath, loadConfig } from 'tsconfig-paths'
 
 const debug = require('debug')('vite-tsconfig-paths')
@@ -23,7 +22,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
   configResolved({ root, logger }) {
-    root = resolve(opts.root || root) + sep
+    root = (opts.root ? normalizePath(opts.root) : root) + '/'
 
     const config = loadConfig(root)
     if (config.resultType == 'failed') {
@@ -55,7 +54,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
             opts.extensions || defaultExtensions
           )
           if (path) {
-            path = '/' + relative(process.cwd(), path)
+            path = normalizePath(path)
 
             const resolution = await this.resolve(path, importer, {
               skipSelf: true,
