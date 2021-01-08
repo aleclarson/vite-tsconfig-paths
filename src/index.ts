@@ -74,7 +74,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
   },
 })
 
-const nodeModulesRE = /\bnode_modules\b/
+const nodeModulesRE = /\/node_modules\//
 
 /** Returns true when `path` is within `root` and not an installed dependency. */
 function isLocalDescendant(path: string, root: string) {
