@@ -60,10 +60,12 @@ export default (opts: PluginOptions = {}): Plugin => ({
               skipSelf: true,
             })
 
-            if (resolution) {
-              resolved.set(id, (path = resolution.id))
-              debug(`resolved "${id}" to "${path}"`)
+            if (!resolution) {
+              return null
             }
+
+            resolved.set(id, (path = resolution.id))
+            debug(`resolved "${id}" to "${path}"`)
           }
         }
         return path
