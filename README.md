@@ -8,8 +8,6 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 [`vite`]: https://github.com/vitejs/vite
 
-> Tip: Install `vite-tsconfig-paths@next` for `vite@2` compatibility!
-
 ## Usage
 
 1. Install as dev dependency
