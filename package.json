@@ -20,7 +20,7 @@
     "vite": "latest"
   },
   "peerDependencies": {
-    "vite": ">1"
+    "vite": ">2.0.0-0"
   },
   "keywords": [
     "vite",
