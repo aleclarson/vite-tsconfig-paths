@@ -7,7 +7,8 @@
   "repository": "aleclarson/vite-tsconfig-paths",
   "license": "MIT",
   "scripts": {
-    "build": "tsc -p ."
+    "build": "tsc -p .",
+    "prepare": "yarn build"
   },
   "dependencies": {
     "debug": "^4.1.1",
