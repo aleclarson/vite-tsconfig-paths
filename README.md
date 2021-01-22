@@ -29,6 +29,16 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 **Note:** You need to restart Vite when you update your `paths` mappings.
 
+### Options
+
+- `root: string`  
+  The root directory to load `tsconfig.json` from.  
+  Defaults to `viteConfig.root`
+
+- `extensions: string[]`  
+  File extensions to search for.  
+  Defaults to `.ts | .tsx | .js | .jsx | .json`
+
 &nbsp;
 
 ## Donate
