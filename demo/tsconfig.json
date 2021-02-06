@@ -1,15 +1,19 @@
 {
-  "extends": "../tsconfig.json",
-  "include": ["src", "vite.config.ts"],
   "compilerOptions": {
-    "esModuleInterop": true,
-    "allowJs": true,
-    "checkJs": true,
-    "jsx": "react",
-    "lib": ["dom", "es2018"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
-    }
-  }
+    },
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "jsx": "preserve",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "lib": ["esnext", "dom"],
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

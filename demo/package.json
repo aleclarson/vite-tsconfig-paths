@@ -1,20 +1,20 @@
 {
   "name": "demo",
-  "private": true,
+  "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "test": "sirv dist"
+    "build": "vuedx-typecheck . && vite build",
+    "serve": "vite preview"
   },
   "dependencies": {
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "vue": "^3.0.5"
   },
   "devDependencies": {
-    "@types/react": "^16.9.53",
-    "@types/react-dom": "^16.9.8",
-    "@vitejs/plugin-react-refresh": "^1.0.0",
-    "sirv-cli": "^1.0.8",
+    "@vitejs/plugin-vue": "^1.1.4",
+    "@vue/compiler-sfc": "^3.0.5",
+    "@vuedx/typecheck": "^0.6.0",
+    "@vuedx/typescript-plugin-vue": "^0.6.0",
+    "sirv": "^1.0.11",
     "typescript": "^4.1.3",
     "vite": "link:../node_modules/vite",
     "vite-tsconfig-paths": "link:.."
