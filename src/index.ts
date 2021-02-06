@@ -1,5 +1,6 @@
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPath, loadConfig } from 'tsconfig-paths'
+import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
 
 const debug = require('debug')('vite-tsconfig-paths')
 
@@ -41,9 +42,13 @@ export default (opts: PluginOptions = {}): Plugin => ({
         ],
         config.addMatchAll
       )
+
+      const { checkJs } = loadCompilerOptions(config.configFileAbsolutePath)
+      const importerExtRE = checkJs ? /\.(mjs|[jt]sx?)$/ : /\.tsx?$/
+
       const resolved = new Map<string, string>()
       this.resolveId = async function (id, importer) {
-        if (!importer || !/\.tsx?$/.test(importer)) {
+        if (!importer || !importerExtRE.test(importer)) {
           return null
         }
         let path = resolved.get(id)
@@ -83,3 +88,12 @@ function isLocalDescendant(path: string, root: string) {
 }
 
 const implicitExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
+
+interface CompilerOptions {
+  checkJs?: boolean
+}
+
+function loadCompilerOptions(configPath: string): CompilerOptions {
+  const config: any = loadTsconfig(configPath)
+  return config.compilerOptions
+}
