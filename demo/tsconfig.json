@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["src", "vite.config.ts"],
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowJs": true,
+    "checkJs": true,
+    "jsx": "react",
+    "lib": ["dom", "es2018"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
