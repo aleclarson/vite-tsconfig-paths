@@ -11,9 +11,10 @@ type PluginOptions = {
    */
   root?: string
   /**
-   * File extensions to search for.
+   * Implicit extensions used when resolving an import path
+   * like `./App` which has no explicit extension like `./App.vue` does.
    *
-   * @default .ts | .tsx | .js | .jsx | .json
+   * TypeScript and JavaScript extensions are used by default.
    */
   extensions?: string[]
 }
@@ -51,7 +52,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
             id,
             undefined,
             undefined,
-            opts.extensions || defaultExtensions
+            opts.extensions?.concat(implicitExtensions) || implicitExtensions
           )
           if (path) {
             path = normalizePath(path)
@@ -81,4 +82,4 @@ function isLocalDescendant(path: string, root: string) {
   return path.startsWith(root) && !nodeModulesRE.test(path.slice(root.length))
 }
 
-const defaultExtensions = ['.ts', '.tsx', '.js', '.jsx', '.json']
+const implicitExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
