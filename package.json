@@ -3,6 +3,7 @@
   "version": "2.1.0",
   "description": "Vite resolver for TypeScript compilerOptions.paths",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "aleclarson",
   "repository": "aleclarson/vite-tsconfig-paths",
   "license": "MIT",
