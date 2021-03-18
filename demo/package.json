@@ -8,15 +8,18 @@
   },
   "dependencies": {
     "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react-dom": "^16.13.1",
+    "svelte": "^3.35.0"
   },
   "devDependencies": {
+    "@svitejs/vite-plugin-svelte": "^0.11.1",
+    "@types/node": "^14.14.35",
     "@types/react": "^16.9.53",
     "@types/react-dom": "^16.9.8",
     "@vitejs/plugin-react-refresh": "^1.0.0",
     "sirv-cli": "^1.0.8",
     "typescript": "^4.1.3",
-    "vite": "link:../node_modules/vite",
+    "vite": "latest",
     "vite-tsconfig-paths": "link:.."
   }
 }

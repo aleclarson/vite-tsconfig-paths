@@ -5,11 +5,12 @@
     "esModuleInterop": true,
     "allowJs": true,
     "checkJs": true,
-    "jsx": "react",
     "lib": ["dom", "es2018"],
+    "module": "es2020",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
-    }
+      "$/*": ["src/*"]
+    },
+    "types": ["svelte"]
   }
 }
