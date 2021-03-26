@@ -45,7 +45,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
       )
 
       const { checkJs } = loadCompilerOptions(config.configFileAbsolutePath)
-      const importerExtRE = checkJs ? /\.(vue|mdx|mjs|[jt]sx?)$/ : /\.tsx?$/
+      const importerExtRE = checkJs ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/ : /\.tsx?$/
 
       const resolved = new Map<string, string>()
       this.resolveId = async function (id, importer) {
