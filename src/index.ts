@@ -19,6 +19,14 @@ type PluginOptions = {
    * TypeScript and JavaScript extensions are used by default.
    */
   extensions?: string[]
+  /**
+   * Disable strictness that limits path resolution to TypeScript
+   * and JavaScript modules.
+   *
+   * Useful if you want asset URLs resolved with your tsconfig,
+   * or when `"checkJs": true` in your tsconfig isn't good enough.
+   */
+  loose?: boolean
 }
 
 export default (opts: PluginOptions = {}): Plugin => ({
@@ -44,8 +52,13 @@ export default (opts: PluginOptions = {}): Plugin => ({
         config.addMatchAll
       )
 
-      const { checkJs } = loadCompilerOptions(config.configFileAbsolutePath)
-      const importerExtRE = checkJs ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/ : /\.tsx?$/
+      let importerExtRE = /./
+      if (!opts.loose) {
+        const { checkJs } = loadCompilerOptions(config.configFileAbsolutePath)
+        importerExtRE = checkJs //
+          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
+          : /\.tsx?$/
+      }
 
       const resolved = new Map<string, string>()
       this.resolveId = async function (id, importer) {
