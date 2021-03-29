@@ -23,7 +23,7 @@ type PluginOptions = {
    * Disable strictness that limits path resolution to TypeScript
    * and JavaScript modules.
    *
-   * Useful if you want asset URLs resolved with your tsconfig,
+   * Useful if you want asset URLs in Vue templates to be resolved,
    * or when `"checkJs": true` in your tsconfig isn't good enough.
    */
   loose?: boolean

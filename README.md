@@ -39,6 +39,10 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
   File extensions to search for.  
   Defaults to `.ts | .tsx | .js | .jsx | .json`
 
+- `loose: boolean`  
+  Disable strictness that limits path resolution to TypeScript and JavaScript modules.  
+  Useful if you want asset URLs in Vue templates to be resolved.
+
 &nbsp;
 
 ### checkJs
