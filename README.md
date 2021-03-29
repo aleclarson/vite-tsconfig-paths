@@ -41,6 +41,12 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 &nbsp;
 
+### checkJs
+
+If your `tsconfig.json` file has `"checkJs": true` in it, path resolution will be expanded beyond TypeScript modules. The following extensions will have their imports resolved by this plugin: `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
+
+&nbsp;
+
 ## Donate
 
 If this package helps you, please donate! Any amount is greatly appreciated. 🥰
