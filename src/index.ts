@@ -55,9 +55,9 @@ export default (opts: PluginOptions = {}): Plugin => ({
       let importerExtRE = /./
       if (!opts.loose) {
         const { allowJs } = loadCompilerOptions(config.configFileAbsolutePath)
-        importerExtRE = allowJs //
-          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
-          : /\.tsx?$/
+        importerExtRE = !allowJs //
+          ? /\.tsx?$/
+          : /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
       }
 
       const resolved = new Map<string, string>()
