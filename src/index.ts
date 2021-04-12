@@ -54,11 +54,13 @@ export default (opts: PluginOptions = {}): Plugin => ({
 
       let importerExtRE = /./
       if (!opts.loose) {
-        const { allowJs, checkJs } = loadCompilerOptions(config.configFileAbsolutePath)
-        const isExportReExpanded = allowJs || checkJs || false;
-        importerExtRE = isExportReExpanded //
-          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
-          : /\.tsx?$/
+        const { allowJs, checkJs } = loadCompilerOptions(
+          config.configFileAbsolutePath
+        )
+        importerExtRE =
+          allowJs || checkJs //
+            ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
+            : /\.tsx?$/
       }
 
       const resolved = new Map<string, string>()
@@ -105,6 +107,7 @@ function isLocalDescendant(path: string, root: string) {
 const implicitExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
 
 interface CompilerOptions {
+  allowJs?: boolean
   checkJs?: boolean
 }
 
