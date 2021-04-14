@@ -1,7 +1,7 @@
+import { resolve, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPath, loadConfig } from 'tsconfig-paths'
 import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
-import { resolve } from 'path'
 
 const debug = require('debug')('vite-tsconfig-paths')
 
@@ -38,7 +38,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
       .filter(Boolean) as Resolver[]
 
     this.resolveId = async function (id, importer) {
-      if (importer) {
+      if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
         const viteResolve = async (id: string) =>
           (await this.resolve(id, importer, { skipSelf: true }))?.id
 
@@ -123,6 +123,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
 })
 
 const nodeModulesRE = /\/node_modules\//
+const relativeImportRE = /^\.\.?(\/|$)/
 
 /** Returns true when `path` is within `root` and not an installed dependency. */
 function isLocalDescendant(path: string, root: string) {
