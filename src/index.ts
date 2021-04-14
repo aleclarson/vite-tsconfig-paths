@@ -7,11 +7,11 @@ const debug = require('debug')('vite-tsconfig-paths')
 
 type PluginOptions = {
   /**
-   * The root directory to load `tsconfig.json` from.
+   * The root directories to load `tsconfig.json` from.
    *
-   * @default viteConfig.root
+   * @default [viteConfig.root]
    */
-  root?: string
+  projects?: string[]
   /**
    * Implicit extensions used when resolving an import path
    * like `./App` which has no explicit extension like `./App.vue` does.
@@ -33,12 +33,44 @@ export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
   configResolved({ root, logger }) {
-    root = (opts.root ? normalizePath(resolve(root, opts.root)) : root) + '/'
+    const resolvers = (opts.projects || [root])
+      .map(createResolver)
+      .filter(Boolean) as Resolver[]
 
-    const config = loadConfig(root)
-    if (config.resultType == 'failed') {
-      logger.warn(`[vite-tsconfig-paths] ${config.message}`)
-    } else if (config.paths) {
+    this.resolveId = async function (id, importer) {
+      if (importer) {
+        const viteResolve = async (id: string) =>
+          (await this.resolve(id, importer, { skipSelf: true }))?.id
+
+        for (const resolve of resolvers) {
+          const resolved = await resolve(id, importer, viteResolve)
+          if (resolved) {
+            return resolved
+          }
+        }
+      }
+    }
+
+    type Resolver = (
+      id: string,
+      importer: string,
+      viteResolve: (id: string) => Promise<string | undefined>
+    ) => Promise<string | undefined>
+
+    function createResolver(configRoot: string): Resolver | null {
+      configRoot =
+        (configRoot ? normalizePath(resolve(root, configRoot)) : configRoot) +
+        '/'
+
+      const config = loadConfig(configRoot)
+      if (config.resultType == 'failed') {
+        logger.warn(`[vite-tsconfig-paths] ${config.message}`)
+        return null
+      }
+      if (!config.paths) {
+        return null
+      }
+
       const matchPath = createMatchPath(
         config.absoluteBaseUrl,
         config.paths,
@@ -64,34 +96,27 @@ export default (opts: PluginOptions = {}): Plugin => ({
       }
 
       const resolved = new Map<string, string>()
-      this.resolveId = async function (id, importer) {
-        if (!importer || !importerExtRE.test(importer)) {
-          return null
-        }
-        let path = resolved.get(id)
-        if (!path && isLocalDescendant(importer, root)) {
-          path = matchPath(
-            id,
-            undefined,
-            undefined,
-            opts.extensions?.concat(implicitExtensions) || implicitExtensions
-          )
-          if (path) {
-            path = normalizePath(path)
-
-            const resolution = await this.resolve(path, importer, {
-              skipSelf: true,
-            })
-
-            if (!resolution) {
-              return null
+      return async (id, importer, viteResolve) => {
+        if (importerExtRE.test(importer)) {
+          let path = resolved.get(id)
+          if (!path && isLocalDescendant(importer, configRoot)) {
+            path = matchPath(
+              id,
+              undefined,
+              undefined,
+              opts.extensions?.concat(implicitExtensions) || implicitExtensions
+            )
+            if (path) {
+              path = normalizePath(path)
+              path = await viteResolve(path)
+              if (path) {
+                resolved.set(id, path)
+                debug(`resolved "${id}" to "${path}"`)
+              }
             }
-
-            resolved.set(id, (path = resolution.id))
-            debug(`resolved "${id}" to "${path}"`)
           }
+          return path
         }
-        return path
       }
     }
   },
