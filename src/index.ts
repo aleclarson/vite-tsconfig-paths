@@ -1,6 +1,6 @@
-import { resolve, isAbsolute } from 'path'
+import { join, resolve, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
-import { createMatchPath, loadConfig } from 'tsconfig-paths'
+import { createMatchPathAsync, loadConfig } from 'tsconfig-paths'
 import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
 
 const debug = require('debug')('vite-tsconfig-paths')
@@ -39,13 +39,16 @@ export default (opts: PluginOptions = {}): Plugin => ({
       .map(createResolver)
       .filter(Boolean) as Resolver[]
 
+    let viteResolve: Resolver
+    this.buildStart = function () {
+      viteResolve = async (id, importer) =>
+        (await this.resolve(id, importer, { skipSelf: true }))?.id
+    }
+
     this.resolveId = async function (id, importer) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
-        const viteResolve = async (id: string) =>
-          (await this.resolve(id, importer, { skipSelf: true }))?.id
-
         for (const resolve of resolvers) {
-          const resolved = await resolve(id, importer, viteResolve)
+          const resolved = await resolve(id, importer)
           if (resolved) {
             return resolved
           }
@@ -55,8 +58,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
 
     type Resolver = (
       id: string,
-      importer: string,
-      viteResolve: (id: string) => Promise<string | undefined>
+      importer: string
     ) => Promise<string | undefined>
 
     function createResolver(configRoot: string): Resolver | null {
@@ -69,22 +71,40 @@ export default (opts: PluginOptions = {}): Plugin => ({
         logger.warn(`[vite-tsconfig-paths] ${config.message}`)
         return null
       }
-      if (!config.paths) {
+      if (!config.baseUrl) {
         return null
       }
 
-      const matchPath = createMatchPath(
-        config.absoluteBaseUrl,
-        config.paths,
-        config.mainFields || [
-          'module',
-          'jsnext',
-          'jsnext:main',
-          'browser',
-          'main',
-        ],
-        config.addMatchAll
-      )
+      let resolveId: Resolver
+      if (config.paths) {
+        const matchPath = createMatchPathAsync(
+          config.absoluteBaseUrl,
+          config.paths,
+          config.mainFields || [
+            'module',
+            'jsnext',
+            'jsnext:main',
+            'browser',
+            'main',
+          ],
+          config.addMatchAll
+        )
+        resolveId = (id, importer) =>
+          new Promise((done) => {
+            matchPath(id, void 0, void 0, extensions, (error, path) => {
+              if (path) {
+                path = normalizePath(path)
+                done(viteResolve(path, importer))
+              } else {
+                error && debug(error.message)
+                done(void 0)
+              }
+            })
+          })
+      } else {
+        resolveId = (id, importer) =>
+          viteResolve(join(config.absoluteBaseUrl, id), importer)
+      }
 
       let importerExtRE = /./
       if (!opts.loose) {
@@ -98,18 +118,14 @@ export default (opts: PluginOptions = {}): Plugin => ({
       }
 
       const resolved = new Map<string, string>()
-      return async (id, importer, viteResolve) => {
+      return async (id, importer) => {
         if (importerExtRE.test(importer)) {
           let path = resolved.get(id)
           if (!path && isLocalDescendant(importer, configRoot)) {
-            path = matchPath(id, undefined, undefined, extensions)
+            path = await resolveId(id, importer)
             if (path) {
-              path = normalizePath(path)
-              path = await viteResolve(path)
-              if (path) {
-                resolved.set(id, path)
-                debug(`resolved "${id}" to "${path}"`)
-              }
+              resolved.set(id, path)
+              debug(`resolved "${id}" to "${path}"`)
             }
           }
           return path
