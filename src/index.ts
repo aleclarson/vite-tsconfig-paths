@@ -63,7 +63,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
     ) => Promise<string | undefined>
 
     function createResolver(root: string): Resolver | null {
-      root = (root ? normalizePath(resolve(viteRoot, root)) : root) + '/'
+      root = normalizePath(resolve(viteRoot, root)) + '/'
 
       const config = loadConfig(root)
       if (config.resultType == 'failed') {
