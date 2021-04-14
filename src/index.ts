@@ -33,6 +33,8 @@ export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
   configResolved({ root, logger }) {
+    const extensions =
+      opts.extensions?.concat(implicitExtensions) || implicitExtensions
     const resolvers = (opts.projects || [root])
       .map(createResolver)
       .filter(Boolean) as Resolver[]
@@ -100,12 +102,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
         if (importerExtRE.test(importer)) {
           let path = resolved.get(id)
           if (!path && isLocalDescendant(importer, configRoot)) {
-            path = matchPath(
-              id,
-              undefined,
-              undefined,
-              opts.extensions?.concat(implicitExtensions) || implicitExtensions
-            )
+            path = matchPath(id, undefined, undefined, extensions)
             if (path) {
               path = normalizePath(path)
               path = await viteResolve(path)
