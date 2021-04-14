@@ -14,26 +14,24 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 2. Inject `vite-tsconfig-paths` using the `vite.config.ts` module
 
-    ```ts
-    import type { UserConfig } from 'vite'
-    import tsconfigPaths from 'vite-tsconfig-paths'
+   ```ts
+   import { defineConfig } from 'vite'
+   import tsconfigPaths from 'vite-tsconfig-paths'
 
-    const config: UserConfig = {
-        plugins: [
-            tsconfigPaths(),
-        ],
-    }
-
-    export default config
-    ```
+   export default defineConfig({
+     plugins: [
+       tsconfigPaths(),
+     ],
+   })
+   ```
 
 **Note:** You need to restart Vite when you update your `paths` mappings.
 
 ### Options
 
-- `root: string`  
-  The root directory to load `tsconfig.json` from.  
-  Defaults to `viteConfig.root`
+- `projects: string[]`  
+  The root directories to load `tsconfig.json` from.  
+  Defaults to `[viteConfig.root]`
 
 - `extensions: string[]`  
   File extensions to search for.  
@@ -45,9 +43,25 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 &nbsp;
 
-### checkJs
+### allowJs
 
-If your `tsconfig.json` file has `"checkJs": true` in it, path resolution will be expanded beyond TypeScript modules. The following extensions will have their imports resolved by this plugin: `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
+If your `tsconfig.json` file has `"allowJs": true` in it, path resolution will be expanded beyond TypeScript modules. The following extensions will have their imports resolved by this plugin: `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
+
+&nbsp;
+
+### baseUrl only
+
+If the `baseUrl` is defined but not `paths`, the `baseUrl` will be prepended to all bare imports, and its resolution will take precedence over node_modules. This is also how TypeScript does it.
+
+Say the `baseUrl` is `../root` and you import `react`. This plugin will use `../root/react` if it exists. If not found, then `react` is resolved normally.
+
+&nbsp;
+
+### include/exclude
+
+The `include` and `exclude` compiler options are respected.
+
+Internally, [globrex](https://github.com/terkelg/globrex) is used for glob matching. Be aware that `**/*` is currently broken (see [here](https://github.com/terkelg/globrex/issues/6)). You should leave `include` undefined if you only set it to `["**/*"]` (which is the default).
 
 &nbsp;
 
