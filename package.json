@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "debug": "^4.1.1",
+    "globrex": "^0.1.2",
     "tsconfig-paths": "^3.9.0"
   },
   "devDependencies": {
+    "@types/globrex": "^0.1.0",
     "@types/node": "^14.0.27",
     "prettier": "^2.0.5",
     "typescript": "^3.9.7",

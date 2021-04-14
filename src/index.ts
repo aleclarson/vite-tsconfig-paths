@@ -2,6 +2,7 @@ import { join, resolve, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync, loadConfig } from 'tsconfig-paths'
 import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
+import globRex = require('globrex')
 
 const debug = require('debug')('vite-tsconfig-paths')
 
@@ -32,10 +33,10 @@ type PluginOptions = {
 export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
-  configResolved({ root, logger }) {
+  configResolved({ root: viteRoot, logger }) {
     const extensions =
       opts.extensions?.concat(implicitExtensions) || implicitExtensions
-    const resolvers = (opts.projects || [root])
+    const resolvers = (opts.projects || [viteRoot])
       .map(createResolver)
       .filter(Boolean) as Resolver[]
 
@@ -61,12 +62,10 @@ export default (opts: PluginOptions = {}): Plugin => ({
       importer: string
     ) => Promise<string | undefined>
 
-    function createResolver(configRoot: string): Resolver | null {
-      configRoot =
-        (configRoot ? normalizePath(resolve(root, configRoot)) : configRoot) +
-        '/'
+    function createResolver(root: string): Resolver | null {
+      root = (root ? normalizePath(resolve(viteRoot, root)) : root) + '/'
 
-      const config = loadConfig(configRoot)
+      const config = loadConfig(root)
       if (config.resultType == 'failed') {
         logger.warn(`[vite-tsconfig-paths] ${config.message}`)
         return null
@@ -106,22 +105,22 @@ export default (opts: PluginOptions = {}): Plugin => ({
           viteResolve(join(config.absoluteBaseUrl, id), importer)
       }
 
+      const compilerOptions = loadCompilerOptions(config.configFileAbsolutePath)
+      const isIncluded = getIncluder(compilerOptions)
+
       let importerExtRE = /./
       if (!opts.loose) {
-        const { allowJs, checkJs } = loadCompilerOptions(
-          config.configFileAbsolutePath
-        )
-        importerExtRE =
-          allowJs || checkJs //
-            ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
-            : /\.tsx?$/
+        importerExtRE = compilerOptions.allowJs
+          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
+          : /\.tsx?$/
       }
 
       const resolved = new Map<string, string>()
       return async (id, importer) => {
         if (importerExtRE.test(importer)) {
           let path = resolved.get(id)
-          if (!path && isLocalDescendant(importer, configRoot)) {
+          if (!path && isLocalDescendant(importer, root)) {
+            if (!isIncluded(importer.slice(root.length))) return
             path = await resolveId(id, importer)
             if (path) {
               resolved.set(id, path)
@@ -146,11 +145,24 @@ function isLocalDescendant(path: string, root: string) {
 const implicitExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
 
 interface CompilerOptions {
+  include?: string[]
+  exclude?: string[]
   allowJs?: boolean
-  checkJs?: boolean
 }
 
 function loadCompilerOptions(configPath: string): CompilerOptions {
   const config: any = loadTsconfig(configPath)
   return config.compilerOptions
+}
+
+function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
+  if (include.length || exclude.length) {
+    const globOpts = { extended: true }
+    const included = include.map((glob) => globRex(glob, globOpts).regex)
+    const excluded = exclude.map((glob) => globRex(glob, globOpts).regex)
+    return (path: string) =>
+      (!included.length || included.some((glob) => glob.test(path))) &&
+      (!excluded.length || !excluded.some((glob) => glob.test(path)))
+  }
+  return () => true
 }
