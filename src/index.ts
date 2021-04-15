@@ -26,7 +26,7 @@ type PluginOptions = {
    * and JavaScript modules.
    *
    * Useful if you want asset URLs in Vue templates to be resolved,
-   * or when `"checkJs": true` in your tsconfig isn't good enough.
+   * or when `"allowJs": true` in your tsconfig isn't good enough.
    */
   loose?: boolean
 }
