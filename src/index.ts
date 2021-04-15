@@ -2,6 +2,7 @@ import { dirname, join, resolve, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync, loadConfig } from 'tsconfig-paths'
 import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
+import { crawl } from 'recrawl-sync'
 import globRex = require('globrex')
 
 const debug = require('debug')('vite-tsconfig-paths')
@@ -36,9 +37,8 @@ export default (opts: PluginOptions = {}): Plugin => ({
   configResolved({ root: viteRoot, logger }) {
     const extensions =
       opts.extensions?.concat(implicitExtensions) || implicitExtensions
-    const resolvers = (opts.projects || [viteRoot])
-      .map(createResolver)
-      .filter(Boolean) as Resolver[]
+    const projects = findProjects(viteRoot, opts)
+    const resolvers = projects.map(createResolver).filter(Boolean) as Resolver[]
 
     let viteResolve: Resolver
     this.buildStart = function () {
@@ -167,4 +167,14 @@ function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
       (!excluded.length || !excluded.some((glob) => glob.test(path)))
   }
   return () => true
+}
+
+function findProjects(viteRoot: string, opts: PluginOptions) {
+  return (
+    opts.projects ||
+    crawl(viteRoot, {
+      only: ['tsconfig.json'],
+      skip: ['node_modules', '.git'],
+    })
+  )
 }
