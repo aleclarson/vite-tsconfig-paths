@@ -175,13 +175,18 @@ function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
 }
 
 function findProjects(viteRoot: string, opts: PluginOptions) {
-  return (
-    opts.projects ||
-    crawl(opts.root || viteRoot, {
+  let { projects } = opts
+  if (!projects) {
+    const root = opts.root && normalizePath(resolve(viteRoot, opts.root))
+    projects = crawl(root || viteRoot, {
       only: ['tsconfig.json'],
       skip: ['node_modules', '.git'],
     })
-  )
+    if (root) {
+      projects = projects.map((configPath) => resolve(root, configPath))
+    }
+  }
+  return projects
 }
 
 function getFileExtensions(exts?: string[]) {
