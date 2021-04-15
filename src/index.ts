@@ -1,4 +1,4 @@
-import { join, resolve, isAbsolute } from 'path'
+import { dirname, join, resolve, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync, loadConfig } from 'tsconfig-paths'
 import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
@@ -63,9 +63,11 @@ export default (opts: PluginOptions = {}): Plugin => ({
     ) => Promise<string | undefined>
 
     function createResolver(root: string): Resolver | null {
+      const configPath = root.endsWith('.json') ? root : null
+      if (configPath) root = dirname(root)
       root = normalizePath(resolve(viteRoot, root)) + '/'
 
-      const config = loadConfig(root)
+      const config = loadConfig(configPath || root)
       if (config.resultType == 'failed') {
         logger.warn(`[vite-tsconfig-paths] ${config.message}`)
         return null
