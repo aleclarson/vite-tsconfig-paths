@@ -29,9 +29,14 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 ### Options
 
+- `root: string`  
+  The directory to crawl for `tsconfig.json` files.  
+  Defaults to `viteConfig.root`
+
 - `projects: string[]`  
-  The root directories to load `tsconfig.json` from.  
-  Defaults to `[viteConfig.root]`
+  An array of `tsconfig.json` paths (relative to `viteConfig.root`)
+  and/or directories that contain a `tsconfig.json` file.  
+  This overrides the `root` option.
 
 - `extensions: string[]`  
   File extensions to search for.  
