@@ -35,10 +35,9 @@ export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
   configResolved({ root: viteRoot, logger }) {
-    const extensions =
-      opts.extensions?.concat(implicitExtensions) || implicitExtensions
     const projects = findProjects(viteRoot, opts)
     const resolvers = projects.map(createResolver).filter(Boolean) as Resolver[]
+    const extensions = getFileExtensions(opts.extensions)
 
     let viteResolve: Resolver
     this.buildStart = function () {
@@ -144,8 +143,6 @@ function isLocalDescendant(path: string, root: string) {
   return path.startsWith(root) && !nodeModulesRE.test(path.slice(root.length))
 }
 
-const implicitExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
-
 interface CompilerOptions {
   include?: string[]
   exclude?: string[]
@@ -177,4 +174,9 @@ function findProjects(viteRoot: string, opts: PluginOptions) {
       skip: ['node_modules', '.git'],
     })
   )
+}
+
+function getFileExtensions(exts?: string[]) {
+  const requiredExts = ['.ts', '.tsx', '.js', '.jsx', '.mjs']
+  return exts ? exts.concat(requiredExts) : requiredExts
 }
