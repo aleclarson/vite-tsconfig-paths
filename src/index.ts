@@ -15,9 +15,11 @@ type PluginOptions = {
    */
   root?: string
   /**
-   * The root directories to load `tsconfig.json` from.
+   * An array of `tsconfig.json` paths (relative to `viteConfig.root`)
+   * and/or directories that contain a `tsconfig.json` file.
    *
-   * @default [viteConfig.root]
+   * When undefined, we crawl the project for `tsconfig.json` files.
+   * You can set the `root` option to control where crawling starts.
    */
   projects?: string[]
   /**
