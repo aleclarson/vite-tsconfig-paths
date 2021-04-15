@@ -9,6 +9,12 @@ const debug = require('debug')('vite-tsconfig-paths')
 
 type PluginOptions = {
   /**
+   * The directory to crawl for `tsconfig.json` files.
+   *
+   * @default viteConfig.root
+   */
+  root?: string
+  /**
    * The root directories to load `tsconfig.json` from.
    *
    * @default [viteConfig.root]
@@ -169,7 +175,7 @@ function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
 function findProjects(viteRoot: string, opts: PluginOptions) {
   return (
     opts.projects ||
-    crawl(viteRoot, {
+    crawl(opts.root || viteRoot, {
       only: ['tsconfig.json'],
       skip: ['node_modules', '.git'],
     })
