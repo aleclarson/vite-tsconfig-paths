@@ -42,10 +42,10 @@ type PluginOptions = {
 export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
   enforce: 'pre',
-  configResolved({ root: viteRoot, logger }) {
+  configResolved({ root: viteRoot }) {
     const projects = findProjects(viteRoot, opts)
-    const resolvers = projects.map(createResolver).filter(Boolean) as Resolver[]
     const extensions = getFileExtensions(opts.extensions)
+    debug('options:', { projects, extensions })
 
     let viteResolve: Resolver
     this.buildStart = function () {
@@ -53,6 +53,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
         (await this.resolve(id, importer, { skipSelf: true }))?.id
     }
 
+    const resolvers = projects.map(createResolver).filter(Boolean) as Resolver[]
     this.resolveId = async function (id, importer) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
         for (const resolve of resolvers) {
@@ -75,11 +76,8 @@ export default (opts: PluginOptions = {}): Plugin => ({
       root = normalizePath(resolve(viteRoot, root)) + '/'
 
       const config = loadConfig(configPath || root)
+      debug('loadConfig:', { configPath, ...config })
       if (config.resultType == 'failed') {
-        logger.warn(`[vite-tsconfig-paths] ${config.message}`)
-        return null
-      }
-      if (!config.baseUrl) {
         return null
       }
 
