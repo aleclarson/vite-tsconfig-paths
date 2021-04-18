@@ -54,9 +54,9 @@ If your `tsconfig.json` file has `"allowJs": true` in it, path resolution will b
 
 &nbsp;
 
-### baseUrl only
+### baseUrl
 
-If the `baseUrl` is defined but not `paths`, the `baseUrl` will be prepended to all bare imports, and its resolution will take precedence over node_modules. This is also how TypeScript does it.
+If the `baseUrl` is defined, it gets prepended to all bare imports, and its resolution will take precedence over node_modules. This is also how TypeScript does it.
 
 Say the `baseUrl` is `../root` and you import `react`. This plugin will use `../root/react` if it exists. If not found, then `react` is resolved normally. The `baseUrl` is relative to the project root (where `tsconfig.json` lives).
 

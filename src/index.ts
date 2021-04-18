@@ -81,7 +81,9 @@ export default (opts: PluginOptions = {}): Plugin => ({
         return null
       }
 
-      let resolveId: Resolver
+      let resolveId: Resolver = (id, importer) =>
+        viteResolve(join(config.absoluteBaseUrl, id), importer)
+
       if (config.paths) {
         const matchPath = createMatchPathAsync(
           config.absoluteBaseUrl,
@@ -95,7 +97,9 @@ export default (opts: PluginOptions = {}): Plugin => ({
           ],
           config.addMatchAll
         )
-        resolveId = (id, importer) =>
+
+        const resolveWithBaseUrl = resolveId
+        const resolveWithPaths: Resolver = (id, importer) =>
           new Promise((done) => {
             matchPath(id, void 0, void 0, extensions, (error, path) => {
               if (path) {
@@ -107,9 +111,11 @@ export default (opts: PluginOptions = {}): Plugin => ({
               }
             })
           })
-      } else {
+
         resolveId = (id, importer) =>
-          viteResolve(join(config.absoluteBaseUrl, id), importer)
+          resolveWithPaths(id, importer).then(
+            (resolved) => resolved || resolveWithBaseUrl(id, importer)
+          )
       }
 
       const compilerOptions = loadCompilerOptions(config.configFileAbsolutePath)
