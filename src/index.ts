@@ -162,8 +162,16 @@ interface CompilerOptions {
 }
 
 function loadCompilerOptions(configPath: string): CompilerOptions {
-  const config: any = loadTsconfig(configPath)
-  return config.compilerOptions
+  const {
+    include,
+    exclude,
+    compilerOptions: { allowJs, checkJs },
+  }: any = loadTsconfig(configPath)
+  return {
+    include,
+    exclude,
+    allowJs: allowJs || checkJs,
+  }
 }
 
 function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
