@@ -212,7 +212,7 @@ function findProjects(viteRoot: string, opts: PluginOptions) {
   // Calculate the depth of each project path.
   const depthMap: { [path: string]: number } = {}
   projects = projects.map((projectPath) => {
-    projectPath = resolve(root, projectPath)
+    projectPath = resolve(root, normalizePath(projectPath))
     depthMap[projectPath] =
       projectPath.split('/').length - (projectPath.endsWith('.json') ? 1 : 0)
     return projectPath
