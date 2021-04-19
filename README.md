@@ -66,7 +66,7 @@ Say the `baseUrl` is `../root` and you import `react`. This plugin will use `../
 
 The `include` and `exclude` compiler options are respected.
 
-Internally, [globrex](https://github.com/terkelg/globrex) is used for glob matching. Be aware that `**/*` is currently broken (see [here](https://github.com/terkelg/globrex/issues/6)). You should leave `include` undefined if you only set it to `["**/*"]` (which is the default).
+Internally, [globrex](https://github.com/terkelg/globrex) is used for glob matching.
 
 &nbsp;
 
