@@ -141,7 +141,13 @@ export default (opts: PluginOptions = {}): Plugin => ({
             path = await resolveId(id, importer)
             if (path) {
               resolved.set(id, path)
-              debug(`resolved "${id}" to "${path}"`)
+              debug(`resolved:`, {
+                id,
+                importer,
+                resolvedId: path,
+                configPath: config.configFileAbsolutePath,
+                compilerOptions,
+              })
             }
           }
           return path
