@@ -70,6 +70,16 @@ Internally, [globrex](https://github.com/terkelg/globrex) is used for glob match
 
 &nbsp;
 
+### Troubleshooting
+
+The `DEBUG` environment variable can be used to figure out why this plugin isn't working as you may have expected.
+
+```sh
+DEBUG=vite-tsconfig-paths yarn vite
+```
+
+&nbsp;
+
 ## Donate
 
 If this package helps you, please donate! Any amount is greatly appreciated. 🥰
