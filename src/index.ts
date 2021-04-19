@@ -185,7 +185,7 @@ function loadCompilerOptions(configPath: string): CompilerOptions {
 }
 
 function compileGlob(glob: string) {
-  return globRex(glob + (glob.endsWith('*') ? '' : '**/*'), {
+  return globRex(glob + (glob.endsWith('*') ? '' : '/**/*'), {
     extended: true,
   }).regex
 }
