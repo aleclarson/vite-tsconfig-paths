@@ -1,9 +1,11 @@
-import { dirname, join, resolve, isAbsolute } from 'path'
+import { dirname, posix, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync, loadConfig } from 'tsconfig-paths'
 import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
 import { crawl } from 'recrawl-sync'
 import globRex = require('globrex')
+
+const { join, resolve } = posix
 
 const debug = require('debug')('vite-tsconfig-paths')
 
