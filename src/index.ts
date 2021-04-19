@@ -75,7 +75,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
     function createResolver(root: string): Resolver | null {
       const configPath = root.endsWith('.json') ? root : null
       if (configPath) root = dirname(root)
-      root = normalizePath(resolve(viteRoot, root)) + '/'
+      root += '/'
 
       const config = loadConfig(configPath || root)
       debug('loadConfig:', { configPath, ...config })
