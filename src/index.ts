@@ -184,11 +184,16 @@ function loadCompilerOptions(configPath: string): CompilerOptions {
   }
 }
 
+function compileGlob(glob: string) {
+  return globRex(glob + (glob.endsWith('*') ? '' : '**/*'), {
+    extended: true,
+  }).regex
+}
+
 function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
   if (include.length || exclude.length) {
-    const globOpts = { extended: true }
-    const included = include.map((glob) => globRex(glob, globOpts).regex)
-    const excluded = exclude.map((glob) => globRex(glob, globOpts).regex)
+    const included = include.map(compileGlob)
+    const excluded = exclude.map(compileGlob)
     return (path: string) =>
       (!included.length || included.some((glob) => glob.test(path))) &&
       (!excluded.length || !excluded.some((glob) => glob.test(path)))
