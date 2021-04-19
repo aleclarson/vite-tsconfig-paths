@@ -83,6 +83,8 @@ export default (opts: PluginOptions = {}): Plugin => ({
         return null
       }
 
+      // Even if "paths" is undefined, the "baseUrl" is still
+      // used to resolve bare imports.
       let resolveId: Resolver = (id, importer) =>
         viteResolve(join(config.absoluteBaseUrl, id), importer)
 
