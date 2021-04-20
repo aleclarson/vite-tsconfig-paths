@@ -164,7 +164,8 @@ function findProjects(viteRoot: string, opts: PluginOptions) {
 
   let { projects } = opts
   if (!projects) {
-    projects = crawl(root || viteRoot, {
+    debug(`crawling "${root}"`)
+    projects = crawl(root, {
       only: ['tsconfig.json'],
       skip: ['node_modules', '.git'],
     })
