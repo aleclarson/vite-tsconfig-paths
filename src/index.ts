@@ -158,6 +158,7 @@ function getIncluder({
   if (include.length || exclude.length) {
     const included = include.map(compileGlob)
     const excluded = exclude.map(compileGlob)
+    debug(`compiled globs:`, { included, excluded })
     return (path: string) => {
       if (!relativeImportRE.test(path)) {
         path = './' + path
