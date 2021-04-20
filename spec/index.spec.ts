@@ -103,4 +103,19 @@ describe('include array', () => {
     result = await resolveId('c', '/a/src/main.ts')
     expect(result).toMatchInlineSnapshot(`undefined`)
   })
+
+  it('can contain a path that ends with /', async () => {
+    configs['/a/']!.include = ['src/']
+    const resolveId = getResolver({
+      projects: ['/a'],
+    })
+
+    viteResolve.mockImplementation((id) => id)
+    let result = await resolveId('c', '/a/src/main.ts')
+    expect(result).toMatchInlineSnapshot(`"/a/c"`)
+
+    // All descendants are matched.
+    result = await resolveId('c', '/a/src/b/main.ts')
+    expect(result).toMatchInlineSnapshot(`"/a/c"`)
+  })
 })
