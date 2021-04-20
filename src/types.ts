@@ -38,5 +38,6 @@ export interface TSConfig {
     paths?: { [path: string]: string[] }
     allowJs?: boolean
     checkJs?: boolean
+    outDir?: string
   }
 }

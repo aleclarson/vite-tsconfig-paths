@@ -13,9 +13,8 @@ export interface Config {
   exclude?: string[]
   allowJs?: boolean
   baseUrl?: string
-  paths?: {
-    [path: string]: string[]
-  }
+  paths?: { [path: string]: string[] }
+  outDir?: string
 }
 
 export function loadConfig(cwd: string): Config | undefined {
@@ -23,7 +22,7 @@ export function loadConfig(cwd: string): Config | undefined {
   if (configPath) {
     const config = loadTsconfig(configPath) as TSConfig
     const {
-      compilerOptions: { allowJs, checkJs, baseUrl, paths } = {},
+      compilerOptions: { allowJs, checkJs, baseUrl, paths, outDir } = {},
     } = config
 
     return {
@@ -33,6 +32,7 @@ export function loadConfig(cwd: string): Config | undefined {
       allowJs: allowJs || checkJs,
       baseUrl: baseUrl && normalizePath(resolve(configPath, '..', baseUrl)),
       paths,
+      outDir,
     }
   }
 }

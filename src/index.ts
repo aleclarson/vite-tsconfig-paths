@@ -146,10 +146,15 @@ function compileGlob(glob: string) {
 function getIncluder({
   include = defaultInclude,
   exclude = defaultExclude,
+  outDir,
 }: {
   include?: string[]
   exclude?: string[]
+  outDir?: string
 }) {
+  if (outDir) {
+    exclude = exclude.concat(outDir)
+  }
   if (include.length || exclude.length) {
     const included = include.map(compileGlob)
     const excluded = exclude.map(compileGlob)
