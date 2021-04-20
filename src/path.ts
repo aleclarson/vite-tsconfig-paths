@@ -15,4 +15,7 @@ export const isAbsolute = isWindows
 /** Only call this on normalized paths */
 export const join = path.posix.join
 
+/** Only call this on normalized paths */
+export const relative = path.posix.relative
+
 export { dirname } from 'path'

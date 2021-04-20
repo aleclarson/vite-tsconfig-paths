@@ -1,4 +1,4 @@
-import { dirname, isAbsolute, join, resolve } from './path'
+import { dirname, isAbsolute, join, relative, resolve } from './path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync } from 'tsconfig-paths'
 import { crawl } from 'recrawl-sync'
@@ -99,10 +99,8 @@ export default (opts: PluginOptions = {}): Plugin => ({
         importer = normalizePath(importer)
         // Ignore importers with unsupported extensions.
         if (!importerExtRE.test(importer)) return
-        // Ignore node_modules and modules outside the root.
-        if (!isLocalDescendant(importer, root)) return
         // Respect the include/exclude properties.
-        if (!isIncluded(importer.slice(root.length))) return
+        if (!isIncluded(relative(root, importer))) return
 
         let path = resolved.get(id)
         if (!path) {
@@ -123,22 +121,26 @@ export default (opts: PluginOptions = {}): Plugin => ({
   },
 })
 
-const nodeModulesRE = /\/node_modules\//
 const relativeImportRE = /^\.\.?(\/|$)/
 const mainFields = ['module', 'jsnext', 'jsnext:main', 'browser', 'main']
 
-/** Returns true when `path` is within `root` and not an installed dependency. */
-function isLocalDescendant(path: string, root: string) {
-  return path.startsWith(root) && !nodeModulesRE.test(path.slice(root.length))
-}
-
 function compileGlob(glob: string) {
-  return globRex(glob + (glob.endsWith('*') ? '' : '/**'), {
+  if (!relativeImportRE.test(glob)) {
+    glob = './' + glob
+  }
+  if (!glob.endsWith('*')) {
+    glob += '/**'
+  }
+  return globRex(glob, {
     extended: true,
     globstar: true,
   }).regex
 }
 
+/**
+ * The returned function does not support absolute paths.
+ * Be sure to call `path.relative` on your path first.
+ */
 function getIncluder({
   include = [],
   exclude = [],
@@ -149,9 +151,13 @@ function getIncluder({
   if (include.length || exclude.length) {
     const included = include.map(compileGlob)
     const excluded = exclude.map(compileGlob)
-    return (path: string) =>
-      (!included.length || included.some((glob) => glob.test(path))) &&
-      (!excluded.length || !excluded.some((glob) => glob.test(path)))
+    return (path: string) => {
+      if (!relativeImportRE.test(path)) {
+        path = './' + path
+      }
+      const test = (glob: RegExp) => glob.test(path)
+      return included.some(test) && !excluded.some(test)
+    }
   }
   return () => true
 }
