@@ -100,7 +100,10 @@ export default (opts: PluginOptions = {}): Plugin => ({
         // Ignore importers with unsupported extensions.
         if (!importerExtRE.test(importer)) return
         // Ignore node_modules and modules outside the root.
-        if (!isLocalDescendant(importer, root)) return
+        if (!isLocalDescendant(importer, root)) {
+          console.log('not local descendant:', { importer, root })
+          return
+        }
         // Respect the include/exclude properties.
         if (!isIncluded(importer.slice(root.length))) return
 
