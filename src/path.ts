@@ -12,4 +12,7 @@ export const isAbsolute = isWindows
   ? path.win32.isAbsolute
   : path.posix.isAbsolute
 
-export { join, dirname } from 'path'
+/** Only call this on normalized paths */
+export const join = path.posix.join
+
+export { dirname } from 'path'
