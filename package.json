@@ -25,6 +25,7 @@
     "esbuild-jest": "npm:@alloc/esbuild-jest@^0.3.6",
     "jest": "^26.6.3",
     "prettier": "^2.0.5",
+    "rollup": "^2.45.2",
     "typescript": "^3.9.7",
     "vite": "latest",
     "vite-tsconfig-paths": "link:."

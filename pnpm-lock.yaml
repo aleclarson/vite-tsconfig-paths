@@ -11,6 +11,7 @@ devDependencies:
   esbuild-jest: /@alloc/esbuild-jest/0.3.6_esbuild@0.11.12
   jest: 26.6.3
   prettier: 2.0.5
+  rollup: 2.45.2
   typescript: 3.9.7
   vite: 2.2.1
   vite-tsconfig-paths: 'link:'
@@ -4072,6 +4073,7 @@ specifiers:
   jest: ^26.6.3
   prettier: ^2.0.5
   recrawl-sync: ^2.0.3
+  rollup: ^2.45.2
   tsconfig-paths: ^3.9.0
   typescript: ^3.9.7
   vite: latest
