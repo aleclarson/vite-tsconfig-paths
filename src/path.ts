@@ -1,0 +1,15 @@
+import * as os from 'os'
+import * as path from 'path'
+import { normalizePath } from 'vite'
+
+const isWindows = os.platform() == 'win32'
+
+export const resolve = isWindows
+  ? (...paths: string[]) => normalizePath(path.win32.resolve(...paths))
+  : path.posix.resolve
+
+export const isAbsolute = isWindows
+  ? path.win32.isAbsolute
+  : path.posix.isAbsolute
+
+export { join, dirname } from 'path'
