@@ -134,21 +134,24 @@ export default (opts: PluginOptions = {}): Plugin => ({
 
       const resolved = new Map<string, string>()
       return async (id, importer) => {
-        if (importerExtRE.test(importer)) {
-          let path = resolved.get(id)
-          if (!path && isLocalDescendant(importer, root)) {
-            if (!isIncluded(importer.slice(root.length))) return
-            path = await resolveId(id, importer)
-            if (path) {
-              resolved.set(id, path)
-              debug(`resolved:`, {
-                id,
-                importer,
-                resolvedId: path,
-                configPath: config.configFileAbsolutePath,
-                compilerOptions,
-              })
-            }
+        // Ignore importers with unsupported extensions.
+        if (!importerExtRE.test(importer)) return
+        // Ignore node_modules and modules outside the root.
+        if (!isLocalDescendant(importer, root)) return
+        // Respect the include/exclude properties.
+        if (!isIncluded(importer.slice(root.length))) return
+
+        let path = resolved.get(id)
+        if (!path) {
+          path = await resolveId(id, importer)
+          if (path) {
+            resolved.set(id, path)
+            debug(`resolved:`, {
+              id,
+              importer,
+              resolvedId: path,
+              configPath: config.configFileAbsolutePath,
+            })
           }
           return path
         }
