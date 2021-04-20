@@ -204,7 +204,7 @@ function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
 
 function findProjects(viteRoot: string, opts: PluginOptions) {
   const root = opts.root
-    ? normalizePath(resolve(viteRoot, opts.root))
+    ? resolve(viteRoot, normalizePath(opts.root))
     : viteRoot
 
   let { projects } = opts
