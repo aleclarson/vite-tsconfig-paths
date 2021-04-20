@@ -27,6 +27,25 @@ describe('tsconfig precedence', () => {
   })
 })
 
+describe('absolute paths in projects array', () => {
+  test('posix paths', async () => {
+    const resolveId = getResolver({
+      projects: ['/a/b'],
+    })
+    resolve.mockImplementation((id) => id)
+    const result = await resolveId('c', '/a/b/b/main.ts')
+    expect(result).toMatchInlineSnapshot(`"/a/b/c"`)
+  })
+  test('windows-style paths', async () => {
+    const resolveId = getResolver({
+      projects: ['D:\\a\\b'],
+    })
+    resolve.mockImplementation((id) => id)
+    const result = await resolveId('c', 'D:\\a\\b\\b\\main.ts')
+    expect(result).toBeDefined()
+  })
+})
+
 function getResolver(opts?: PluginOptions) {
   const plugin = tsPaths(opts)
   const container: Partial<PluginContext> = {

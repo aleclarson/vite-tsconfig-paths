@@ -23,6 +23,10 @@ export let configs: { [cwd: string]: Config } = {
     configPath: '/a/b/tsconfig.json',
     baseUrl: '/a/b',
   },
+  'D:/a/b/': {
+    configPath: 'D:/a/b/tsconfig.json',
+    baseUrl: 'D:/a/b',
+  },
 }
 
 const initialConfigs = configs
