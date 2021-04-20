@@ -1,6 +1,7 @@
 # vite-tsconfig-paths
 
 [![npm](https://img.shields.io/npm/v/vite-tsconfig-paths.svg)](https://www.npmjs.com/package/vite-tsconfig-paths)
+[![codecov](https://codecov.io/gh/aleclarson/vite-tsconfig-paths/branch/master/graph/badge.svg)](https://codecov.io/gh/aleclarson/vite-tsconfig-paths)
 [![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/alecdotbiz)
 
@@ -19,9 +20,7 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
    import tsconfigPaths from 'vite-tsconfig-paths'
 
    export default defineConfig({
-     plugins: [
-       tsconfigPaths(),
-     ],
+     plugins: [tsconfigPaths()],
    })
    ```
 

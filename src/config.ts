@@ -7,7 +7,18 @@ import { resolve } from 'path'
 import { statSync } from 'fs'
 import { TSConfig } from './types'
 
-export function loadConfig(cwd: string) {
+export interface Config {
+  configPath: string
+  include?: string[]
+  exclude?: string[]
+  allowJs?: boolean
+  baseUrl?: string
+  paths?: {
+    [path: string]: string[]
+  }
+}
+
+export function loadConfig(cwd: string): Config | undefined {
   const configPath = resolveConfigPath(cwd)
   if (configPath) {
     const config = loadTsconfig(configPath) as TSConfig
