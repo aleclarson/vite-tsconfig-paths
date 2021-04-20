@@ -10,6 +10,7 @@ devDependencies:
   esbuild: 0.11.12
   esbuild-jest: /@alloc/esbuild-jest/0.3.6_esbuild@0.11.12
   jest: 26.6.3
+  klona: 2.0.4
   prettier: 2.0.5
   rollup: 2.45.2
   typescript: 3.9.7
@@ -2607,6 +2608,12 @@ packages:
       node: '>=6'
     resolution:
       integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==
+  /klona/2.0.4:
+    dev: true
+    engines:
+      node: '>= 8'
+    resolution:
+      integrity: sha512-ZRbnvdg/NxqzC7L9Uyqzf4psi1OM4Cuc+sJAkQPjO6XkQIJTNbfK2Rsmbw8fx1p2mkZdp2FZYo2+LwXYY/uwIA==
   /leven/3.1.0:
     dev: true
     engines:
@@ -4071,6 +4078,7 @@ specifiers:
   esbuild-jest: npm:@alloc/esbuild-jest@^0.3.6
   globrex: ^0.1.2
   jest: ^26.6.3
+  klona: ^2.0.4
   prettier: ^2.0.5
   recrawl-sync: ^2.0.3
   rollup: ^2.45.2
