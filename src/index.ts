@@ -116,8 +116,8 @@ export default (opts: PluginOptions = {}): Plugin => ({
               configPath: config.configPath,
             })
           }
-          return path
         }
+        return path
       }
     }
   },
