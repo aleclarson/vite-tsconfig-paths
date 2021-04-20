@@ -1,8 +1,5 @@
 import { klona } from 'klona'
-import { Config } from '../src/config'
-
-/** Rollup `resolve` method for plugins */
-export const resolve = jest.fn<string | null, [string, string?]>()
+import type { Config } from '../src/config'
 
 type ConfigModule = jest.Mocked<typeof import('../src/config')>
 type MatchModule = jest.Mocked<typeof import('tsconfig-paths')>
@@ -12,9 +9,31 @@ const { createMatchPathAsync }: MatchModule = jest.createMockFromModule(
   'tsconfig-paths'
 )
 
+jest.mock('tsconfig-paths', () => ({
+  createMatchPathAsync,
+}))
+
+jest.mock('../src/config', () => ({
+  loadConfig,
+}))
+
+jest.mock('os', () => ({
+  ...jest.requireActual('os'),
+  // Since the "path.win32" module supports both /^\// and /^[A-Z]:[\\/]/
+  // path formats, we can use it to test windows-style paths without
+  // breaking the tests for posix-style paths.
+  platform: () => 'win32',
+}))
+
 export { createMatchPathAsync, loadConfig }
 
-export let configs: { [cwd: string]: Config } = {
+/** Mock the implementation of Vite's resolver */
+export const viteResolve = jest.fn<string | null, [string, string?]>()
+
+/** The `loadConfig` mock uses this config cache by default. */
+export let configs: {
+  [root: string]: Config | undefined
+} = {
   '/a/': {
     configPath: '/a/tsconfig.json',
     baseUrl: '/a',
@@ -23,18 +42,9 @@ export let configs: { [cwd: string]: Config } = {
     configPath: '/a/b/tsconfig.json',
     baseUrl: '/a/b',
   },
-  'D:/a/b/': {
-    configPath: 'D:/a/b/tsconfig.json',
-    baseUrl: 'D:/a/b',
-  },
 }
 
 const initialConfigs = configs
-beforeEach(() => {
+export function resetConfigs() {
   configs = klona(initialConfigs)
-  loadConfig.mockImplementation((cwd) => configs[cwd])
-})
-
-afterEach(() => {
-  jest.resetAllMocks()
-})
+}

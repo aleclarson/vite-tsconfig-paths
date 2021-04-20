@@ -1,7 +1,4 @@
-import tsPaths from 'vite-tsconfig-paths'
-import type { PluginContext } from 'rollup'
-import type { PluginOptions } from '../src/types'
-import { resolve } from './mocks'
+import { getResolver, viteResolve } from './resolver'
 
 describe('tsconfig precedence', () => {
   it('prefers nearest tsconfig', async () => {
@@ -11,7 +8,7 @@ describe('tsconfig precedence', () => {
       projects: ['..', '.'],
     })
 
-    resolve.mockImplementation((id) => id)
+    viteResolve.mockImplementation((id) => id)
 
     // Import from /a/b/
     let result = await resolveId('c', '/a/b/main.ts')
@@ -32,7 +29,7 @@ describe('absolute paths in projects array', () => {
     const resolveId = getResolver({
       projects: ['/a/b'],
     })
-    resolve.mockImplementation((id) => id)
+    viteResolve.mockImplementation((id) => id)
     const result = await resolveId('c', '/a/b/b/main.ts')
     expect(result).toMatchInlineSnapshot(`"/a/b/c"`)
   })
@@ -40,25 +37,8 @@ describe('absolute paths in projects array', () => {
     const resolveId = getResolver({
       projects: ['D:\\a\\b'],
     })
-    resolve.mockImplementation((id) => id)
+    viteResolve.mockImplementation((id) => id)
     const result = await resolveId('c', 'D:\\a\\b\\b\\main.ts')
-    expect(result).toBeDefined()
+    expect(result).toMatchInlineSnapshot(`"D:/a/b/c"`)
   })
 })
-
-function getResolver(opts?: PluginOptions) {
-  const plugin = tsPaths(opts)
-  const container: Partial<PluginContext> = {
-    async resolve(id, importer) {
-      const resolved = resolve(id, importer)
-      return resolved && ({ id: resolved } as any)
-    },
-  }
-
-  plugin.configResolved!({ root: __dirname } as any)
-  plugin.buildStart!.call(container as any, {} as any)
-
-  return plugin.resolveId as {
-    (id: string, importer?: string): Promise<string | undefined>
-  }
-}
