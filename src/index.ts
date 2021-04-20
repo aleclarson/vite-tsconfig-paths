@@ -1,45 +1,14 @@
 import { dirname, posix, isAbsolute } from 'path'
 import { normalizePath, Plugin } from 'vite'
-import { createMatchPathAsync, loadConfig } from 'tsconfig-paths'
-import { loadTsconfig } from 'tsconfig-paths/lib/tsconfig-loader'
+import { createMatchPathAsync } from 'tsconfig-paths'
 import { crawl } from 'recrawl-sync'
 import globRex = require('globrex')
+import { PluginOptions } from './types'
+import { loadConfig } from './config'
 
 const { join, resolve } = posix
 
 const debug = require('debug')('vite-tsconfig-paths')
-
-type PluginOptions = {
-  /**
-   * The directory to crawl for `tsconfig.json` files.
-   *
-   * @default viteConfig.root
-   */
-  root?: string
-  /**
-   * An array of `tsconfig.json` paths (relative to `viteConfig.root`)
-   * and/or directories that contain a `tsconfig.json` file.
-   *
-   * When undefined, we crawl the project for `tsconfig.json` files.
-   * You can set the `root` option to control where crawling starts.
-   */
-  projects?: string[]
-  /**
-   * Implicit extensions used when resolving an import path
-   * like `./App` which has no explicit extension like `./App.vue` does.
-   *
-   * TypeScript and JavaScript extensions are used by default.
-   */
-  extensions?: string[]
-  /**
-   * Disable strictness that limits path resolution to TypeScript
-   * and JavaScript modules.
-   *
-   * Useful if you want asset URLs in Vue templates to be resolved,
-   * or when `"allowJs": true` in your tsconfig isn't good enough.
-   */
-  loose?: boolean
-}
 
 export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
@@ -78,29 +47,25 @@ export default (opts: PluginOptions = {}): Plugin => ({
       root += '/'
 
       const config = loadConfig(configPath || root)
-      debug('loadConfig:', { configPath, ...config })
-      if (config.resultType == 'failed') {
+      if (!config) {
+        debug(`[!] config not found: "${configPath || root}"`)
         return null
       }
+      const { baseUrl, paths } = config
+      if (!baseUrl) {
+        debug(`[!] missing baseUrl: "${config.configPath}"`)
+        return null
+      }
+
+      debug('config loaded:', config)
 
       // Even if "paths" is undefined, the "baseUrl" is still
       // used to resolve bare imports.
       let resolveId: Resolver = (id, importer) =>
-        viteResolve(join(config.absoluteBaseUrl, id), importer)
+        viteResolve(join(baseUrl, id), importer)
 
-      if (config.paths) {
-        const matchPath = createMatchPathAsync(
-          config.absoluteBaseUrl,
-          config.paths,
-          config.mainFields || [
-            'module',
-            'jsnext',
-            'jsnext:main',
-            'browser',
-            'main',
-          ],
-          config.addMatchAll
-        )
+      if (paths) {
+        const matchPath = createMatchPathAsync(baseUrl, paths, mainFields)
 
         const resolveWithBaseUrl = resolveId
         const resolveWithPaths: Resolver = (id, importer) =>
@@ -122,12 +87,11 @@ export default (opts: PluginOptions = {}): Plugin => ({
           )
       }
 
-      const compilerOptions = loadCompilerOptions(config.configFileAbsolutePath)
-      const isIncluded = getIncluder(compilerOptions)
+      const isIncluded = getIncluder(config)
 
       let importerExtRE = /./
       if (!opts.loose) {
-        importerExtRE = compilerOptions.allowJs
+        importerExtRE = config.allowJs
           ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
           : /\.tsx?$/
       }
@@ -150,7 +114,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
               id,
               importer,
               resolvedId: path,
-              configPath: config.configFileAbsolutePath,
+              configPath: config.configPath,
             })
           }
           return path
@@ -162,29 +126,11 @@ export default (opts: PluginOptions = {}): Plugin => ({
 
 const nodeModulesRE = /\/node_modules\//
 const relativeImportRE = /^\.\.?(\/|$)/
+const mainFields = ['module', 'jsnext', 'jsnext:main', 'browser', 'main']
 
 /** Returns true when `path` is within `root` and not an installed dependency. */
 function isLocalDescendant(path: string, root: string) {
   return path.startsWith(root) && !nodeModulesRE.test(path.slice(root.length))
-}
-
-interface CompilerOptions {
-  include?: string[]
-  exclude?: string[]
-  allowJs?: boolean
-}
-
-function loadCompilerOptions(configPath: string): CompilerOptions {
-  const {
-    include,
-    exclude,
-    compilerOptions: { allowJs, checkJs },
-  }: any = loadTsconfig(configPath)
-  return {
-    include,
-    exclude,
-    allowJs: allowJs || checkJs,
-  }
 }
 
 function compileGlob(glob: string) {
@@ -194,7 +140,13 @@ function compileGlob(glob: string) {
   }).regex
 }
 
-function getIncluder({ include = [], exclude = [] }: CompilerOptions) {
+function getIncluder({
+  include = [],
+  exclude = [],
+}: {
+  include?: string[]
+  exclude?: string[]
+}) {
   if (include.length || exclude.length) {
     const included = include.map(compileGlob)
     const excluded = exclude.map(compileGlob)
