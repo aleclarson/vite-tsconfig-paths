@@ -96,6 +96,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
 
       const resolved = new Map<string, string>()
       return async (id, importer) => {
+        importer = normalizePath(importer)
         // Ignore importers with unsupported extensions.
         if (!importerExtRE.test(importer)) return
         // Ignore node_modules and modules outside the root.
