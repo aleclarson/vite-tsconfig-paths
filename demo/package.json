@@ -3,10 +3,12 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "serve": "node server.mjs",
     "build": "vite build",
     "test": "sirv dist"
   },
   "dependencies": {
+    "express": "^4.17.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
   },
