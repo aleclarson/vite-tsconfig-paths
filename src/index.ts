@@ -2,11 +2,12 @@ import { dirname, isAbsolute, join, relative, resolve } from './path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync } from 'tsconfig-paths'
 import { crawl } from 'recrawl-sync'
-import globRex = require('globrex')
+import globRex from 'globrex'
 import { PluginOptions } from './types'
 import { loadConfig } from './config'
 
-const debug = require('debug')('vite-tsconfig-paths')
+import _debug from 'debug'
+const debug = _debug('vite-tsconfig-paths')
 
 export default (opts: PluginOptions = {}): Plugin => ({
   name: 'vite:tsconfig-paths',
