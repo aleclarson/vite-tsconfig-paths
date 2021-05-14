@@ -5,6 +5,7 @@
     "lib": ["es2018"],
     "module": "commonjs",
     "moduleResolution": "node",
+    "esModuleInterop": true,
     "noUnusedLocals": true,
     "outDir": "dist",
     "sourceMap": true,
