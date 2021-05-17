@@ -130,7 +130,7 @@ function compileGlob(glob: string) {
   if (!relativeImportRE.test(glob)) {
     glob = './' + glob
   }
-  if (!glob.endsWith('*') && !/\.[tj]sx?/.test(glob)) {
+  if (!glob.split('/').pop()!.includes('*')) {
     glob += '/**'
   }
   return globRex(glob, {
