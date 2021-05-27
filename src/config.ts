@@ -1,7 +1,7 @@
 import {
   loadTsconfig,
   walkForTsConfig,
-} from 'tsconfig-paths/lib/tsconfig-loader'
+} from 'tsconfig-paths/lib/tsconfig-loader.js'
 import { normalizePath } from 'vite'
 import { resolve } from 'path'
 import { statSync } from 'fs'
