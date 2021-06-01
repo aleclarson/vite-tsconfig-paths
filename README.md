@@ -12,6 +12,9 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 ## Usage
 
 1. Install as dev dependency
+   ```bash
+   npm install vite-tsconfig-paths --save-dev
+   ```
 
 2. Inject `vite-tsconfig-paths` using the `vite.config.ts` module
 
