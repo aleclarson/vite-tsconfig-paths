@@ -112,6 +112,13 @@ export default (opts: PluginOptions = {}): Plugin => {
       // Respect the include/exclude properties.
       if (!isIncluded(relative(root, importer))) return
 
+      // Find and remove Vite's suffix (e.g. "?url") if present.
+      // If the path is resolved, the suffix will be added back.
+      const suffix = /\?.+$/.exec(id)?.[0]
+      if (suffix) {
+        id = id.slice(0, -suffix.length)
+      }
+
       let path = resolved.get(id)
       if (!path) {
         path = await resolveId(viteResolve, id, importer)
@@ -125,7 +132,7 @@ export default (opts: PluginOptions = {}): Plugin => {
           })
         }
       }
-      return path
+      return path && suffix ? path + suffix : path
     }
   }
 }
