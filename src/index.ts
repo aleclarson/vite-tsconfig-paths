@@ -113,9 +113,6 @@ export default (opts: PluginOptions = {}): Plugin => ({
           path = await resolveId(id, importer)
           if (path) {
             resolved.set(id, path)
-            // Add the suffix back to id/path, now that they're resolved.
-            id = suffix ? id + suffix : id
-            path = suffix ? path + suffix : path
             debug(`resolved:`, {
               id,
               importer,
@@ -124,7 +121,7 @@ export default (opts: PluginOptions = {}): Plugin => ({
             })
           }
         }
-        return path
+        return path && suffix ? path + suffix : path
       }
     }
   },
