@@ -103,10 +103,18 @@ export default (opts: PluginOptions = {}): Plugin => ({
         // Respect the include/exclude properties.
         if (!isIncluded(relative(root, importer))) return
 
+        // Find and remove Vite's suffix (e.g. "?url") if present.
+        // If the path is resolved, the suffix will be added back.
+        const suffix = /\?.+$/.exec(id)?.[0]
+        if (suffix) id = id.replace(/\?.+$/, '')
+
         let path = resolved.get(id)
         if (!path) {
           path = await resolveId(id, importer)
           if (path) {
+            // Add the suffix back to id/path, now that they're resolved.
+            id = suffix ? id + suffix : id
+            path = suffix ? path + suffix : path
             resolved.set(id, path)
             debug(`resolved:`, {
               id,
