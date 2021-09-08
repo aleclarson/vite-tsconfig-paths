@@ -18,9 +18,9 @@ export function getResolver(opts?: PluginOptions) {
   }
 
   plugin.configResolved!({ root: __dirname } as any)
-  plugin.buildStart!.call(container as any, {} as any)
+  Object.assign(plugin, container)
 
-  const resolveId = plugin.resolveId as (
+  const resolveId = plugin.resolveId!.bind(plugin as any) as (
     id: string,
     importer?: string
   ) => Promise<string | undefined>
