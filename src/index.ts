@@ -9,7 +9,6 @@ import { loadConfig } from './config'
 import _debug from 'debug'
 const debug = _debug('vite-tsconfig-paths')
 
-
 type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
 
 type Resolver = (
@@ -29,15 +28,16 @@ export default (opts: PluginOptions = {}): Plugin => {
       const extensions = getFileExtensions(opts.extensions)
 
       debug('options:', { projects, extensions })
-      
-      resolvers = projects.map(project => createResolver(project, extensions)).filter(Boolean) as Resolver[]
-    },
-    async resolveId(id, importer)  {
-      const viteResolve = (async (id: string, importer: string) =>
-        (await this.resolve(id, importer, { skipSelf: true }))?.id
-      )
 
+      resolvers = projects
+        .map((project) => createResolver(project, extensions))
+        .filter(Boolean) as Resolver[]
+    },
+    async resolveId(id, importer) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
+        const viteResolve: ViteResolve = async (id, importer) =>
+          (await this.resolve(id, importer, { skipSelf: true }))?.id
+
         for (const resolve of resolvers) {
           const resolved = await resolve(viteResolve, id, importer)
           if (resolved) {
@@ -90,7 +90,8 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       resolveId = (viteResolve, id, importer) =>
         resolveWithPaths(viteResolve, id, importer).then(
-          (resolved) => resolved || resolveWithBaseUrl(viteResolve, id, importer)
+          (resolved) =>
+            resolved || resolveWithBaseUrl(viteResolve, id, importer)
         )
     }
 
