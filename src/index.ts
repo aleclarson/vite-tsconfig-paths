@@ -9,118 +9,125 @@ import { loadConfig } from './config'
 import _debug from 'debug'
 const debug = _debug('vite-tsconfig-paths')
 
-export default (opts: PluginOptions = {}): Plugin => ({
-  name: 'vite:tsconfig-paths',
-  enforce: 'pre',
-  configResolved({ root: viteRoot }) {
-    const projects = findProjects(viteRoot, opts)
-    const extensions = getFileExtensions(opts.extensions)
-    debug('options:', { projects, extensions })
 
-    let viteResolve: Resolver
-    this.buildStart = function () {
-      viteResolve = async (id, importer) =>
+type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
+
+type Resolver = (
+  viteResolve: ViteResolve,
+  id: string,
+  importer: string
+) => Promise<string | undefined>
+
+export default (opts: PluginOptions = {}): Plugin => {
+  let resolvers: Resolver[]
+
+  return {
+    name: 'vite:tsconfig-paths',
+    enforce: 'pre',
+    configResolved(config) {
+      const projects = findProjects(config.root, opts)
+      const extensions = getFileExtensions(opts.extensions)
+
+      debug('options:', { projects, extensions })
+      
+      resolvers = projects.map(project => createResolver(project, extensions)).filter(Boolean) as Resolver[]
+    },
+    async resolveId(id, importer)  {
+      const viteResolve = (async (id: string, importer: string) =>
         (await this.resolve(id, importer, { skipSelf: true }))?.id
-    }
+      )
 
-    const resolvers = projects.map(createResolver).filter(Boolean) as Resolver[]
-    this.resolveId = async function (id, importer) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
         for (const resolve of resolvers) {
-          const resolved = await resolve(id, importer)
+          const resolved = await resolve(viteResolve, id, importer)
           if (resolved) {
             return resolved
           }
         }
       }
+    },
+  }
+
+  function createResolver(root: string, extensions: string[]): Resolver | null {
+    const configPath = root.endsWith('.json') ? root : null
+    if (configPath) root = dirname(root)
+    root += '/'
+
+    const config = loadConfig(configPath || root)
+    if (!config) {
+      debug(`[!] config not found: "${configPath || root}"`)
+      return null
+    }
+    const { baseUrl, paths } = config
+    if (!baseUrl) {
+      debug(`[!] missing baseUrl: "${config.configPath}"`)
+      return null
     }
 
-    type Resolver = (
-      id: string,
-      importer: string
-    ) => Promise<string | undefined>
+    debug('config loaded:', config)
 
-    function createResolver(root: string): Resolver | null {
-      const configPath = root.endsWith('.json') ? root : null
-      if (configPath) root = dirname(root)
-      root += '/'
+    // Even if "paths" is undefined, the "baseUrl" is still
+    // used to resolve bare imports.
+    let resolveId: Resolver = (viteResolve, id, importer) =>
+      viteResolve(join(baseUrl, id), importer)
 
-      const config = loadConfig(configPath || root)
-      if (!config) {
-        debug(`[!] config not found: "${configPath || root}"`)
-        return null
-      }
-      const { baseUrl, paths } = config
-      if (!baseUrl) {
-        debug(`[!] missing baseUrl: "${config.configPath}"`)
-        return null
-      }
+    if (paths) {
+      const matchPath = createMatchPathAsync(baseUrl, paths, mainFields)
 
-      debug('config loaded:', config)
-
-      // Even if "paths" is undefined, the "baseUrl" is still
-      // used to resolve bare imports.
-      let resolveId: Resolver = (id, importer) =>
-        viteResolve(join(baseUrl, id), importer)
-
-      if (paths) {
-        const matchPath = createMatchPathAsync(baseUrl, paths, mainFields)
-
-        const resolveWithBaseUrl = resolveId
-        const resolveWithPaths: Resolver = (id, importer) =>
-          new Promise((done) => {
-            matchPath(id, void 0, void 0, extensions, (error, path) => {
-              if (path) {
-                path = normalizePath(path)
-                done(viteResolve(path, importer))
-              } else {
-                error && debug(error.message)
-                done(void 0)
-              }
-            })
+      const resolveWithBaseUrl = resolveId
+      const resolveWithPaths: Resolver = (viteResolve, id, importer) =>
+        new Promise((done) => {
+          matchPath(id, void 0, void 0, extensions, (error, path) => {
+            if (path) {
+              path = normalizePath(path)
+              done(viteResolve(path, importer))
+            } else {
+              error && debug(error.message)
+              done(void 0)
+            }
           })
+        })
 
-        resolveId = (id, importer) =>
-          resolveWithPaths(id, importer).then(
-            (resolved) => resolved || resolveWithBaseUrl(id, importer)
-          )
-      }
-
-      const isIncluded = getIncluder(config)
-
-      let importerExtRE = /./
-      if (!opts.loose) {
-        importerExtRE = config.allowJs
-          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
-          : /\.tsx?$/
-      }
-
-      const resolved = new Map<string, string>()
-      return async (id, importer) => {
-        importer = normalizePath(importer)
-        // Ignore importers with unsupported extensions.
-        if (!importerExtRE.test(importer)) return
-        // Respect the include/exclude properties.
-        if (!isIncluded(relative(root, importer))) return
-
-        let path = resolved.get(id)
-        if (!path) {
-          path = await resolveId(id, importer)
-          if (path) {
-            resolved.set(id, path)
-            debug(`resolved:`, {
-              id,
-              importer,
-              resolvedId: path,
-              configPath: config.configPath,
-            })
-          }
-        }
-        return path
-      }
+      resolveId = (viteResolve, id, importer) =>
+        resolveWithPaths(viteResolve, id, importer).then(
+          (resolved) => resolved || resolveWithBaseUrl(viteResolve, id, importer)
+        )
     }
-  },
-})
+
+    const isIncluded = getIncluder(config)
+
+    let importerExtRE = /./
+    if (!opts.loose) {
+      importerExtRE = config.allowJs
+        ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
+        : /\.tsx?$/
+    }
+
+    const resolved = new Map<string, string>()
+    return async (viteResolve, id, importer) => {
+      importer = normalizePath(importer)
+      // Ignore importers with unsupported extensions.
+      if (!importerExtRE.test(importer)) return
+      // Respect the include/exclude properties.
+      if (!isIncluded(relative(root, importer))) return
+
+      let path = resolved.get(id)
+      if (!path) {
+        path = await resolveId(viteResolve, id, importer)
+        if (path) {
+          resolved.set(id, path)
+          debug(`resolved:`, {
+            id,
+            importer,
+            resolvedId: path,
+            configPath: config.configPath,
+          })
+        }
+      }
+      return path
+    }
+  }
+}
 
 const relativeImportRE = /^\.\.?(\/|$)/
 const mainFields = ['module', 'jsnext', 'jsnext:main', 'browser', 'main']
