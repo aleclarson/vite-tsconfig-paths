@@ -118,4 +118,21 @@ describe('include array', () => {
     result = await resolveId('c', '/a/src/b/main.ts')
     expect(result).toMatchInlineSnapshot(`"/a/c"`)
   })
+
+  it('ignores query in importer path', async () => {
+    configs['/a/']!.include = ['src/**/*.vue']
+    const resolveId = getResolver({
+      projects: ['/a'],
+      loose: true,
+    })
+
+    viteResolve.mockImplementation((id) => {
+      return id
+    })
+    const result = await resolveId(
+      'c',
+      '/a/src/main.vue?vue&type=template&lang.js'
+    )
+    expect(result).toMatchInlineSnapshot(`"/a/c"`)
+  })
 })

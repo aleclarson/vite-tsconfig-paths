@@ -169,6 +169,7 @@ function getIncluder({
     const excluded = exclude.map(compileGlob)
     debug(`compiled globs:`, { included, excluded })
     return (path: string) => {
+      path = path.replace(/\?.+$/, '')
       if (!relativeImportRE.test(path)) {
         path = './' + path
       }
