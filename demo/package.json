@@ -18,7 +18,7 @@
     "@vitejs/plugin-react-refresh": "^1.0.0",
     "sirv-cli": "^1.0.8",
     "typescript": "^4.1.3",
-    "vite": "link:../node_modules/vite",
-    "vite-tsconfig-paths": "link:.."
+    "vite": "*",
+    "vite-tsconfig-paths": "*"
   }
 }
