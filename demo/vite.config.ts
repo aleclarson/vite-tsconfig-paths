@@ -1,12 +1,9 @@
 import tsconfigPaths from 'vite-tsconfig-paths'
-import reactRefresh from '@vitejs/plugin-react-refresh'
+import react from '@vitejs/plugin-react'
 import type { UserConfig } from 'vite'
 
 const config: UserConfig = {
-  plugins: [
-    reactRefresh(), //
-    tsconfigPaths(),
-  ],
+  plugins: [react(), tsconfigPaths()],
 }
 
 export default config
