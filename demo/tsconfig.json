@@ -5,7 +5,7 @@
     "esModuleInterop": true,
     "allowJs": true,
     "checkJs": true,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "lib": ["dom", "es2018"],
     "baseUrl": ".",
     "paths": {
