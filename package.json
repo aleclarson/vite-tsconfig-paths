@@ -12,7 +12,10 @@
   "repository": "aleclarson/vite-tsconfig-paths",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist/* && tsup src/index.ts --sourcemap --dts --format cjs,esm",
+    "clean": "rimraf dist/*",
+    "dev": "yarn bundle --watch",
+    "build": "yarn clean && yarn bundle",
+    "bundle": "tsup src/index.ts --sourcemap --dts --format cjs,esm",
     "prepare": "yarn build",
     "test": "jest"
   },
