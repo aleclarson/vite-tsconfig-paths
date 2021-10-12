@@ -106,6 +106,9 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     const resolved = new Map<string, string>()
     return async (viteResolve, id, importer) => {
+      // Skip virtual modules.
+      if (id.includes('\0')) return
+
       importer = normalizePath(importer)
       // Ignore importers with unsupported extensions.
       if (!importerExtRE.test(importer)) return
