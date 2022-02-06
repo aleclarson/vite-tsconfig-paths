@@ -59,22 +59,20 @@ export default (opts: PluginOptions = {}): Plugin => {
       return null
     }
     const { baseUrl, paths } = config
-    if (!baseUrl) {
-      debug(`[!] missing baseUrl: "${config.configPath}"`)
+    if (!baseUrl && !paths) {
+      debug(`[!] missing baseUrl and paths: "${config.configPath}"`)
       return null
     }
 
     debug('config loaded:', config)
 
-    // Even if "paths" is undefined, the "baseUrl" is still
-    // used to resolve bare imports.
-    let resolveId: Resolver = (viteResolve, id, importer) =>
-      viteResolve(join(baseUrl, id), importer)
+    const resolveWithBaseUrl: Resolver | undefined = baseUrl
+      ? (viteResolve, id, importer) => viteResolve(join(baseUrl, id), importer)
+      : undefined
 
+    let resolveId: Resolver
     if (paths) {
-      const matchPath = createMatchPathAsync(baseUrl, paths, mainFields)
-
-      const resolveWithBaseUrl = resolveId
+      const matchPath = createMatchPathAsync(baseUrl ?? root, paths, mainFields)
       const resolveWithPaths: Resolver = (viteResolve, id, importer) =>
         new Promise((done) => {
           matchPath(id, void 0, void 0, extensions, (error, path) => {
@@ -88,11 +86,16 @@ export default (opts: PluginOptions = {}): Plugin => {
           })
         })
 
-      resolveId = (viteResolve, id, importer) =>
-        resolveWithPaths(viteResolve, id, importer).then(
-          (resolved) =>
-            resolved || resolveWithBaseUrl(viteResolve, id, importer)
-        )
+      if (resolveWithBaseUrl) {
+        resolveId = (viteResolve, id, importer) =>
+          resolveWithPaths(viteResolve, id, importer).then((resolved) => {
+            return resolved ?? resolveWithBaseUrl(viteResolve, id, importer)
+          })
+      } else {
+        resolveId = resolveWithPaths
+      }
+    } else {
+      resolveId = resolveWithBaseUrl!
     }
 
     const isIncluded = getIncluder(config)
