@@ -113,10 +113,12 @@ export default (opts: PluginOptions = {}): Plugin => {
       if (id.includes('\0')) return
 
       importer = normalizePath(importer)
+      const importerFile = importer.replace(/[#?].+$/, '')
+
       // Ignore importers with unsupported extensions.
-      if (!importerExtRE.test(importer)) return
+      if (!importerExtRE.test(importerFile)) return
       // Respect the include/exclude properties.
-      if (!isIncluded(relative(root, importer))) return
+      if (!isIncluded(relative(root, importerFile))) return
 
       // Find and remove Vite's suffix (e.g. "?url") if present.
       // If the path is resolved, the suffix will be added back.
