@@ -23,7 +23,7 @@
     "debug": "^4.1.1",
     "globrex": "^0.1.2",
     "recrawl-sync": "^2.0.3",
-    "tsconfig-paths": "^3.9.0"
+    "tsconfig-paths": "^4.0.0"
   },
   "devDependencies": {
     "@alloc/fast-rimraf": "^1.0.8",

@@ -102,9 +102,11 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     let importerExtRE = /./
     if (!opts.loose) {
-      importerExtRE = config.allowJs
-        ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
-        : /\.tsx?$/
+      importerExtRE =
+        config.allowJs ||
+        (configPath || root).split('/').slice(-1)[0] === 'jsconfig.json'
+          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
+          : /\.tsx?$/
     }
 
     const resolved = new Map<string, string>()
@@ -204,7 +206,7 @@ function findProjects(viteRoot: string, opts: PluginOptions) {
   if (!projects) {
     debug(`crawling "${root}"`)
     projects = crawl(root, {
-      only: ['tsconfig.json'],
+      only: ['jsconfig.json', 'tsconfig.json'],
       skip: ['node_modules', '.git'],
     })
   }
