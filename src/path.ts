@@ -18,4 +18,7 @@ export const join = path.posix.join
 /** Only call this on normalized paths */
 export const relative = path.posix.relative
 
+/** Only call this on normalized paths */
+export const basename = path.posix.basename
+
 export { dirname } from 'path'

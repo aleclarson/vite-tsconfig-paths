@@ -1,4 +1,4 @@
-import { dirname, isAbsolute, join, relative, resolve } from './path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from './path'
 import { normalizePath, Plugin } from 'vite'
 import { createMatchPathAsync } from 'tsconfig-paths'
 import { crawl } from 'recrawl-sync'
@@ -103,8 +103,7 @@ export default (opts: PluginOptions = {}): Plugin => {
     let importerExtRE = /./
     if (!opts.loose) {
       importerExtRE =
-        config.allowJs ||
-        (configPath || root).split('/').slice(-1)[0] === 'jsconfig.json'
+        config.allowJs || basename(config.configPath) === 'jsconfig.json'
           ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
           : /\.tsx?$/
     }
