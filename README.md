@@ -77,6 +77,8 @@ The `DEBUG` environment variable can be used to figure out why this plugin isn't
 DEBUG=vite-tsconfig-paths yarn vite
 ```
 
+Also, check out the [Troubleshooting](https://github.com/aleclarson/vite-tsconfig-paths/wiki/Troubleshooting) wiki page for more guidance.
+
 &nbsp;
 
 ## Donate
