@@ -1,3 +1,13 @@
+👋 Do you like **Postgres** 🐘? I'm making a [100% type-safe query builder](https://github.com/alloc/tusken) (not an ORM), and **I want your help** fleshing it out.  
+<sub>
+   Btw, it generates the types and client from your database schema, so it's never out-of-date and you have access to [every native Postgres function](https://github.com/alloc/tusken/blob/master/spec/generated/test/functions.ts)!  
+   I want to add a [powerful plugin system](https://github.com/alloc/tusken/issues/11) soon, and eventually all functionality will be pluggable.
+</sub>
+
+[**Learn more**](https://github.com/alloc/tusken)  
+
+---
+
 # vite-tsconfig-paths
 
 [![npm](https://img.shields.io/npm/v/vite-tsconfig-paths.svg)](https://www.npmjs.com/package/vite-tsconfig-paths)
