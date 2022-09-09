@@ -88,13 +88,3 @@ DEBUG=vite-tsconfig-paths yarn vite
 ```
 
 Also, check out the [Troubleshooting](https://github.com/aleclarson/vite-tsconfig-paths/wiki/Troubleshooting) wiki page for more guidance.
-
-&nbsp;
-
-## Donate
-
-If this package helps you, please donate! Any amount is greatly appreciated. 🥰
-
-- ETH: **0xa446626195bbe4d0697e729c1433a86fB6Cf66cF**
-- BTC: **17vYtAUPKXzubMEnNcN8SiuFgicrd5Rp9A**
-- KIN: **GBU7RDRD7VDVT254RR6PGMBJESXQVDHJ5CGGODZKRXM2P4MP3G5QSAMH**
