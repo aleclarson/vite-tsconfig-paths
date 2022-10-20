@@ -17,6 +17,8 @@ type Resolver = (
   importer: string
 ) => Promise<string | undefined>
 
+export type { PluginOptions }
+
 export default (opts: PluginOptions = {}): Plugin => {
   let resolvers: Resolver[]
 
