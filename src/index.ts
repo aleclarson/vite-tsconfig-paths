@@ -23,7 +23,7 @@ export default (opts: PluginOptions = {}): Plugin => {
   let resolvers: Resolver[]
 
   return {
-    name: 'vite:tsconfig-paths',
+    name: 'vite-tsconfig-paths',
     enforce: 'pre',
     configResolved(config) {
       const projects = findProjects(config.root, opts)
