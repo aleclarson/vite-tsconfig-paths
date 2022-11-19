@@ -106,8 +106,8 @@ export default (opts: PluginOptions = {}): Plugin => {
     if (!opts.loose) {
       importerExtRE =
         config.allowJs || basename(config.configPath) === 'jsconfig.json'
-          ? /\.(vue|svelte|mdx|mjs|[jt]sx?)$/
-          : /\.tsx?$/
+          ? /\.(vue|svelte|mdx|[mc]?[jt]sx?)$/
+          : /\.[mc]?tsx?$/
     }
 
     const resolved = new Map<string, string>()
