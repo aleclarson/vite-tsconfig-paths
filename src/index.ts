@@ -274,7 +274,7 @@ function resolveProjectPaths(projects: string[] | undefined, root: string) {
   }
   return tsconfck.findAll(root, {
     skip(dir) {
-      return dir != 'node_modules' && dir != '.git'
+      return dir == 'node_modules' || dir == '.git'
     },
   })
 }
