@@ -151,7 +151,11 @@ export default (opts: PluginOptions = {}): Plugin => {
 const relativeImportRE = /^\.\.?(\/|$)/
 const mainFields = ['module', 'jsnext', 'jsnext:main', 'browser', 'main']
 const defaultInclude = ['**/*']
-const defaultExclude = ['node_modules', 'bower_components', 'jspm_packages']
+const defaultExclude = [
+  '**/node_modules',
+  '**/bower_components',
+  '**/jspm_packages',
+]
 
 function compileGlob(glob: string) {
   if (!relativeImportRE.test(glob)) {
