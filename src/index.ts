@@ -8,6 +8,7 @@ import { PluginOptions } from './types'
 import _debug from 'debug'
 import * as fs from 'fs'
 import { resolvePathMappings } from './mappings'
+import { resolve } from 'path'
 const debug = _debug('vite-tsconfig-paths')
 
 type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
@@ -28,11 +29,10 @@ export default (opts: PluginOptions = {}): Plugin => {
     enforce: 'pre',
     async configResolved(config) {
       const root = opts.root || searchForWorkspaceRoot(config.root)
-      const projects = await tsconfck.findAll(root, {
-        skip(dir) {
-          return dir != 'node_modules' && dir != '.git'
-        },
-      })
+      const projects = await resolveProjectPaths(
+        opts.projects,
+        opts.root || config.root
+      )
 
       let hasTypeScriptDep = false
       if (opts.parseNative) {
@@ -261,4 +261,20 @@ function compileGlob(glob: string) {
     extended: true,
     globstar: true,
   }).regex
+}
+
+function resolveProjectPaths(projects: string[] | undefined, root: string) {
+  if (projects) {
+    return projects.map((file) => {
+      if (!file.endsWith('.json')) {
+        file = join(file, 'tsconfig.json')
+      }
+      return resolve(root, file)
+    })
+  }
+  return tsconfck.findAll(root, {
+    skip(dir) {
+      return dir != 'node_modules' && dir != '.git'
+    },
+  })
 }
