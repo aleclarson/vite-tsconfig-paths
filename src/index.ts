@@ -153,7 +153,7 @@ export default (opts: PluginOptions = {}): Plugin => {
     let importerExtRE = /./
     if (!opts.loose) {
       importerExtRE =
-        options.allowJs || basename(configPath) === 'jsconfig.json'
+        options.allowJs || basename(configPath).startsWith('jsconfig.')
           ? jsLikeRE
           : /\.[mc]?tsx?$/
     }
