@@ -1,5 +1,6 @@
 {
   "name": "demo",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -15,10 +16,10 @@
   "devDependencies": {
     "@types/react": "^16.9.53",
     "@types/react-dom": "^16.9.8",
-    "@vitejs/plugin-react": "^1.0.4",
+    "@vitejs/plugin-react": "^2.2.0",
     "sirv-cli": "^1.0.8",
     "typescript": "^4.1.3",
     "vite": "*",
-    "vite-tsconfig-paths": "*"
+    "vite-tsconfig-paths": "link:.."
   }
 }
