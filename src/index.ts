@@ -150,13 +150,11 @@ export default (opts: PluginOptions = {}): Plugin => {
       outDir
     )
 
-    let importerExtRE = /./
-    if (!opts.loose) {
-      importerExtRE =
-        options.allowJs || basename(configPath).startsWith('jsconfig.')
-          ? jsLikeRE
-          : /\.[mc]?tsx?$/
-    }
+    const importerExtRE = opts.loose
+      ? /./
+      : options.allowJs || basename(configPath).startsWith('jsconfig.')
+      ? jsLikeRE
+      : /\.[mc]?tsx?$/
 
     const resolutionCache = new Map<string, string>()
     return async (viteResolve, id, importer) => {
