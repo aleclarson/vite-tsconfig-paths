@@ -2,15 +2,22 @@ export interface PluginOptions {
   /**
    * The directory to crawl for `tsconfig.json` files.
    *
-   * @default viteConfig.root
+   * When the `projects` option is set, crawling is skipped, so this is
+   * used to resolve `projects` paths into absolute paths instead.
+   *
+   * @default
+   * // The config root is used for resolving project paths, and the
+   * // workspace root is used for crawling.
+   * options.projects ? viteConfig.root :
+   * vite.searchForWorkspaceRoot(viteConfig.root)
    */
   root?: string
   /**
-   * An array of `tsconfig.json` paths (relative to `viteConfig.root`)
-   * and/or directories that contain a `tsconfig.json` file.
+   * An array of `.json` files and/or directories that contain a
+   * `tsconfig.json` file. These JSON files must adhere to the
+   * {@link https://www.typescriptlang.org/tsconfig TypeScript config interface}. The `extends` property is supported.
    *
-   * When undefined, we crawl the project for `tsconfig.json` files.
-   * You can set the `root` option to control where crawling starts.
+   * This disables crawling for `tsconfig.json` files when defined.
    */
   projects?: string[]
   /**
