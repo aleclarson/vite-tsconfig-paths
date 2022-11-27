@@ -58,16 +58,17 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
-      resolvers = (
-        await Promise.all(
-          projects.map((tsconfigFile) =>
-            (hasTypeScriptDep
-              ? tsconfck.parseNative(tsconfigFile)
-              : tsconfck.parse(tsconfigFile)
-            ).then((config) => createResolver(config))
-          )
+      const parsedProjects = await Promise.all(
+        projects.map((tsconfigFile) =>
+          hasTypeScriptDep
+            ? tsconfck.parseNative(tsconfigFile)
+            : tsconfck.parse(tsconfigFile)
         )
-      ).filter(Boolean) as Resolver[]
+      )
+
+      resolvers = parsedProjects
+        .map(createResolver)
+        .filter(Boolean) as Resolver[]
     },
     async resolveId(id, importer) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
