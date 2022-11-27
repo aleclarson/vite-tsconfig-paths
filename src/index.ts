@@ -28,16 +28,26 @@ export default (opts: PluginOptions = {}): Plugin => {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
     async configResolved(config) {
-      const root = opts.root || searchForWorkspaceRoot(config.root)
+      const configRoot = opts.root || config.root
+      const workspaceRoot = opts.root || searchForWorkspaceRoot(config.root)
+
+      debug('roots:', { configRoot, workspaceRoot })
+
       const projects = await resolveProjectPaths(
         opts.projects,
-        opts.root || config.root
+        configRoot,
+        workspaceRoot
       )
+
+      debug('projects:', projects)
 
       let hasTypeScriptDep = false
       if (opts.parseNative) {
         try {
-          const pkgJson = fs.readFileSync(join(root, 'package.json'), 'utf8')
+          const pkgJson = fs.readFileSync(
+            join(workspaceRoot, 'package.json'),
+            'utf8'
+          )
           const pkg = JSON.parse(pkgJson)
           const deps = { ...pkg.dependencies, ...pkg.devDependencies }
           hasTypeScriptDep = 'typescript' in deps
@@ -47,8 +57,6 @@ export default (opts: PluginOptions = {}): Plugin => {
           }
         }
       }
-
-      debug('options:', { root, projects })
 
       resolvers = (
         await Promise.all(
@@ -261,16 +269,20 @@ function compileGlob(glob: string) {
   }).regex
 }
 
-function resolveProjectPaths(projects: string[] | undefined, root: string) {
+function resolveProjectPaths(
+  projects: string[] | undefined,
+  configRoot: string,
+  workspaceRoot: string
+) {
   if (projects) {
     return projects.map((file) => {
       if (!file.endsWith('.json')) {
         file = join(file, 'tsconfig.json')
       }
-      return resolve(root, file)
+      return resolve(configRoot, file)
     })
   }
-  return tsconfck.findAll(root, {
+  return tsconfck.findAll(workspaceRoot, {
     skip(dir) {
       return dir == 'node_modules' || dir == '.git'
     },
