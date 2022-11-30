@@ -59,17 +59,31 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
-      const parsedProjects = await Promise.all(
-        projects.map((tsconfigFile) =>
-          hasTypeScriptDep
-            ? tsconfck.parseNative(tsconfigFile)
-            : tsconfck.parse(tsconfigFile)
+      const parsedProjects = new Set(
+        await Promise.all(
+          projects.map((tsconfigFile) =>
+            hasTypeScriptDep
+              ? tsconfck.parseNative(tsconfigFile)
+              : tsconfck.parse(tsconfigFile)
+          )
         )
       )
 
-      resolvers = parsedProjects
-        .map(createResolver)
-        .filter(Boolean) as Resolver[]
+      resolvers = []
+      parsedProjects.forEach((project) => {
+        // Don't create a resolver for projects with a references array.
+        // Instead, create a resolver for each project in that array.
+        if (project.referenced) {
+          project.referenced.forEach((projectRef) => {
+            parsedProjects.add(projectRef)
+          })
+        } else {
+          const resolver = createResolver(project)
+          if (resolver) {
+            resolvers.push(resolver)
+          }
+        }
+      })
     },
     async resolveId(id, importer) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
