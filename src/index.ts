@@ -101,11 +101,11 @@ export default (opts: PluginOptions = {}): Plugin => {
   }
 
   function createResolver(
-    parsed: tsconfck.TSConfckParseResult
+    project: tsconfck.TSConfckParseResult
   ): Resolver | null {
-    const configPath = parsed.tsconfigFile
+    const configPath = project.tsconfigFile
     const configDir = dirname(configPath)
-    const config = parsed.tsconfig as {
+    const config = project.tsconfig as {
       include?: string[]
       exclude?: string[]
       compilerOptions: CompilerOptions
