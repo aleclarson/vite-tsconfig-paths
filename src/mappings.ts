@@ -7,7 +7,7 @@ export type PathMapping = {
 
 export function resolvePathMappings(
   paths: Record<string, string[]>,
-  root: string
+  base: string
 ) {
   // If a module name can be matched with multiple patterns then pattern
   // with the longest prefix will be picked.
@@ -20,7 +20,7 @@ export function resolvePathMappings(
     pattern = escapeStringRegexp(pattern).replace(/\*/g, '(.+)')
     resolved.push({
       pattern: new RegExp('^' + pattern + '$'),
-      paths: relativePaths.map((relativePath) => resolve(root, relativePath)),
+      paths: relativePaths.map((relativePath) => resolve(base, relativePath)),
     })
   }
   return resolved

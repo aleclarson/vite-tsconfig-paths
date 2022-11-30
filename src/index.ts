@@ -125,7 +125,10 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     let resolveId: Resolver
     if (paths) {
-      const pathMappings = resolvePathMappings(paths, dirname(configPath))
+      const pathMappings = resolvePathMappings(
+        paths,
+        options.baseUrl ?? dirname(configPath)
+      )
       const resolveWithPaths: Resolver = async (viteResolve, id, importer) => {
         for (const mapping of pathMappings) {
           const match = id.match(mapping.pattern)
