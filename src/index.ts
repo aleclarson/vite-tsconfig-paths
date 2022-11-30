@@ -3,6 +3,7 @@ import { searchForWorkspaceRoot, normalizePath, Plugin } from 'vite'
 import type { CompilerOptions } from 'typescript'
 import globRex from 'globrex'
 import * as tsconfck from 'tsconfck'
+import { inspect } from 'util'
 import { PluginOptions } from './types'
 
 import _debug from 'debug'
@@ -96,7 +97,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       compilerOptions: CompilerOptions
     }
     const options = config.compilerOptions
-    debug('config loaded:', parsed)
+    debug('config loaded:', inspect({ configPath, config }, false, 10, true))
 
     const { baseUrl, paths } = options
     if (!baseUrl && !paths) {
