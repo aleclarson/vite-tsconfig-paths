@@ -29,14 +29,29 @@ export default (opts: PluginOptions = {}): Plugin => {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
     async configResolved(config) {
-      const configRoot = opts.root || config.root
-      const workspaceRoot = opts.root || searchForWorkspaceRoot(config.root)
+      let projectRoot = config.root
+      let workspaceRoot!: string
 
-      debug('roots:', { configRoot, workspaceRoot })
+      let { root } = opts
+      if (root) {
+        root = resolve(projectRoot, root)
+      } else {
+        workspaceRoot = searchForWorkspaceRoot(projectRoot)
+      }
+
+      debug('options.root   ==', root)
+      debug('project root   ==', projectRoot)
+      debug('workspace root ==', workspaceRoot)
+
+      // The "root" option overrides both of these.
+      if (root) {
+        projectRoot = root
+        workspaceRoot = root
+      }
 
       const projects = await resolveProjectPaths(
         opts.projects,
-        configRoot,
+        projectRoot,
         workspaceRoot
       )
 
@@ -290,7 +305,7 @@ function compileGlob(glob: string) {
 
 function resolveProjectPaths(
   projects: string[] | undefined,
-  configRoot: string,
+  projectRoot: string,
   workspaceRoot: string
 ) {
   if (projects) {
@@ -298,7 +313,7 @@ function resolveProjectPaths(
       if (!file.endsWith('.json')) {
         file = join(file, 'tsconfig.json')
       }
-      return resolve(configRoot, file)
+      return resolve(projectRoot, file)
     })
   }
   return tsconfck.findAll(workspaceRoot, {
