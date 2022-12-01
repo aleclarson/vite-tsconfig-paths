@@ -1,15 +1,15 @@
-import { basename, dirname, isAbsolute, join, relative } from './path'
-import { searchForWorkspaceRoot, normalizePath, Plugin } from 'vite'
-import type { CompilerOptions } from 'typescript'
-import globRex from 'globrex'
-import * as tsconfck from 'tsconfck'
-import { inspect } from 'util'
-import { PluginOptions } from './types'
-
 import _debug from 'debug'
 import * as fs from 'fs'
-import { resolvePathMappings } from './mappings'
+import globRex from 'globrex'
 import { resolve } from 'path'
+import * as tsconfck from 'tsconfck'
+import type { CompilerOptions } from 'typescript'
+import { inspect } from 'util'
+import { normalizePath, Plugin, searchForWorkspaceRoot } from 'vite'
+import { resolvePathMappings } from './mappings'
+import { basename, dirname, isAbsolute, join, relative } from './path'
+import { PluginOptions } from './types'
+
 const debug = _debug('vite-tsconfig-paths')
 
 type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
