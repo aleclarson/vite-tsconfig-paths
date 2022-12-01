@@ -12,13 +12,15 @@ import { PluginOptions } from './types'
 
 const debug = _debug('vite-tsconfig-paths')
 
+const noMatch = [undefined, false] as [undefined, false]
+
 type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
 
 type Resolver = (
   viteResolve: ViteResolve,
   id: string,
   importer: string
-) => Promise<string | undefined>
+) => Promise<[resolved: string | undefined, matched: boolean]>
 
 export type { PluginOptions }
 
@@ -106,9 +108,13 @@ export default (opts: PluginOptions = {}): Plugin => {
           (await this.resolve(id, importer, { skipSelf: true }))?.id
 
         for (const resolve of resolvers) {
-          const resolved = await resolve(viteResolve, id, importer)
+          const [resolved, matched] = await resolve(viteResolve, id, importer)
           if (resolved) {
             return resolved
+          }
+          if (matched) {
+            // Once a matching resolver is found, stop looking.
+            break
           }
         }
       }
@@ -134,17 +140,27 @@ export default (opts: PluginOptions = {}): Plugin => {
       return null
     }
 
-    const resolveWithBaseUrl: Resolver | undefined = baseUrl
+    type InternalResolver = (
+      viteResolve: ViteResolve,
+      id: string,
+      importer: string
+    ) => Promise<string | undefined>
+
+    const resolveWithBaseUrl: InternalResolver | undefined = baseUrl
       ? (viteResolve, id, importer) => viteResolve(join(baseUrl, id), importer)
       : undefined
 
-    let resolveId: Resolver
+    let resolveId: InternalResolver
     if (paths) {
       const pathMappings = resolvePathMappings(
         paths,
         options.baseUrl ?? dirname(configPath)
       )
-      const resolveWithPaths: Resolver = async (viteResolve, id, importer) => {
+      const resolveWithPaths: InternalResolver = async (
+        viteResolve,
+        id,
+        importer
+      ) => {
         for (const mapping of pathMappings) {
           const match = id.match(mapping.pattern)
           if (!match) {
@@ -202,7 +218,7 @@ export default (opts: PluginOptions = {}): Plugin => {
     return async (viteResolve, id, importer) => {
       // Skip virtual modules.
       if (id.includes('\0')) {
-        return
+        return noMatch
       }
 
       importer = normalizePath(importer)
@@ -210,13 +226,13 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       // Ignore importers with unsupported extensions.
       if (!importerExtRE.test(importerFile)) {
-        return
+        return noMatch
       }
 
       // Respect the include/exclude properties.
       const relativeImporterFile = relative(configDir, importerFile)
       if (!isIncludedRelative(relativeImporterFile)) {
-        return
+        return noMatch
       }
 
       // Find and remove Vite's suffix (e.g. "?url") if present.
@@ -239,7 +255,7 @@ export default (opts: PluginOptions = {}): Plugin => {
           })
         }
       }
-      return path && suffix ? path + suffix : path
+      return [path && suffix ? path + suffix : path, true]
     }
   }
 }
