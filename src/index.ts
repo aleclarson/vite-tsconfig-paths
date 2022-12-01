@@ -25,7 +25,7 @@ type Resolver = (
 export type { PluginOptions }
 
 export default (opts: PluginOptions = {}): Plugin => {
-  let resolvers: Resolver[]
+  let resolversByDir: Record<string, Resolver[]>
 
   return {
     name: 'vite-tsconfig-paths',
@@ -86,7 +86,7 @@ export default (opts: PluginOptions = {}): Plugin => {
         )
       )
 
-      resolvers = []
+      resolversByDir = {}
       parsedProjects.forEach((project) => {
         // Don't create a resolver for projects with a references array.
         // Instead, create a resolver for each project in that array.
@@ -97,6 +97,8 @@ export default (opts: PluginOptions = {}): Plugin => {
         } else {
           const resolver = createResolver(project)
           if (resolver) {
+            const projectDir = dirname(project.tsconfigFile)
+            const resolvers = (resolversByDir[projectDir] ||= [])
             resolvers.push(resolver)
           }
         }
@@ -107,15 +109,29 @@ export default (opts: PluginOptions = {}): Plugin => {
         const viteResolve: ViteResolve = async (id, importer) =>
           (await this.resolve(id, importer, { skipSelf: true }))?.id
 
-        for (const resolve of resolvers) {
-          const [resolved, matched] = await resolve(viteResolve, id, importer)
-          if (resolved) {
-            return resolved
-          }
-          if (matched) {
-            // Once a matching resolver is found, stop looking.
-            break
-          }
+        let prevProjectDir: string | undefined
+        let projectDir = dirname(importer)
+
+        // Find the nearest directory with a matching tsconfig file.
+        loop: while (projectDir && projectDir != prevProjectDir) {
+          const resolvers = resolversByDir[projectDir]
+          if (resolvers)
+            for (const resolve of resolvers) {
+              const [resolved, matched] = await resolve(
+                viteResolve,
+                id,
+                importer
+              )
+              if (resolved) {
+                return resolved
+              }
+              if (matched) {
+                // Once a matching resolver is found, stop looking.
+                break loop
+              }
+            }
+          prevProjectDir = projectDir
+          projectDir = dirname(prevProjectDir)
         }
       }
     },
