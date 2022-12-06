@@ -1,10 +1,10 @@
 👋 Do you like **Postgres** 🐘? I'm making a [100% type-safe query builder](https://github.com/alloc/tusken) (not an ORM), and **I want your help** fleshing it out.  
 <sub>
-   Btw, it generates the types and client from your database schema, so it's never out-of-date and you have access to [every native Postgres function](https://github.com/alloc/tusken/blob/master/spec/generated/test/functions.ts)!  
-   I want to add a [powerful plugin system](https://github.com/alloc/tusken/issues/11) soon, and eventually all functionality will be pluggable.
+Btw, it generates the types and client from your database schema, so it's never out-of-date and you have access to [every native Postgres function](https://github.com/alloc/tusken/blob/master/spec/generated/test/functions.ts)!  
+ I want to add a [powerful plugin system](https://github.com/alloc/tusken/issues/11) soon, and eventually all functionality will be pluggable.
 </sub>
 
-[**Learn more**](https://github.com/alloc/tusken)  
+[**Learn more**](https://github.com/alloc/tusken)
 
 ---
 
@@ -39,27 +39,34 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 ### Options
 
 - `root: string`  
-  The directory to crawl for `tsconfig.json` files.  
-  Defaults to `viteConfig.root`
+  The directory to search for `tsconfig.json` files.
+
+  The default value of this option depends on whether `projects` is defined. If it is, then the [Vite project root](https://vitejs.dev/config/shared-options.html#root) is used. Otherwise, Vite's [`searchForWorkspaceRoot`](https://vitejs.dev/guide/api-javascript.html#searchforworkspaceroot) function is used.
 
 - `projects: string[]`  
-  An array of `tsconfig.json` paths (relative to `viteConfig.root`)
-  and/or directories that contain a `tsconfig.json` file.  
-  This overrides the `root` option.
+  If you have an esoteric setup, you _might_ need this option to specify where your tsconfig files are located. The paths within are relative to the `root` option.
 
-- `extensions: string[]`  
-  File extensions to search for.  
-  Defaults to `.ts | .tsx | .js | .jsx | .mjs`
+  If defined, the `root` directory won't be searched for tsconfig files. You should **always** try using just the `root` option first, because this option is more brittle.
 
 - `loose: boolean`  
-  Disable strictness that limits path resolution to TypeScript and JavaScript modules.  
-  Useful if you want asset URLs in Vue templates to be resolved.
+  Disable strictness that limits path resolution to TypeScript and JavaScript importers.
+
+  Useful if you want imports in Vue templates to be resolved, but don't want to use `allowJs` in your tsconfig, for example.
+
+  In other words, when `loose: true` is used, any file that gets transpiled into JavaScript will have its imports resolved by this plugin.
+
+- `parseNative: boolean`  
+  Enable use of the [`tsconfck.parseNative`](https://github.com/dominikg/tsconfck/blob/main/docs/api.md#parsenative) function, which delegates the loading of tsconfig files to the TypeScript compiler. You'll probably never need this, but I added it just in case.
+
+  ⚠️ This option can slow down Vite's startup time by as much as
+  600ms, due to the size of the TypeScript compiler. Only use it when
+  necessary.
 
 &nbsp;
 
 ### allowJs
 
-If your `tsconfig.json` file has `"allowJs": true` in it, path resolution will be expanded beyond TypeScript modules. The following extensions will have their imports resolved by this plugin: `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
+If your tsconfig file has `"allowJs": true` in it, path resolution will be expanded beyond TypeScript importers. The following extensions will have their imports resolved by this plugin: `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
 
 &nbsp;
 
@@ -73,7 +80,7 @@ Say the `baseUrl` is `../root` and you import `react`. This plugin will use `../
 
 ### include/exclude
 
-The `include` and `exclude` compiler options are respected.
+The `include` and `exclude` tsconfig options are respected.
 
 Internally, [globrex](https://github.com/terkelg/globrex) is used for glob matching.
 
