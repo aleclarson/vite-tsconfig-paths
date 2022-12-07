@@ -94,6 +94,12 @@ export default (opts: PluginOptions = {}): Plugin => {
           project.referenced.forEach((projectRef) => {
             parsedProjects.add(projectRef)
           })
+          // Reinsert the parent project so it's tried last. This is
+          // important because project references can be used to
+          // override the parent project.
+          parsedProjects.delete(project)
+          parsedProjects.add(project)
+          project.referenced = undefined
         } else {
           const resolver = createResolver(project)
           if (resolver) {
