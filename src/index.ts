@@ -335,11 +335,15 @@ function getIncluder(
 function addCompiledGlob(this: RegExp[], glob: string) {
   const endsWithGlob = glob.split('/').pop()!.includes('*')
   const relativeGlob = relativeImportRE.test(glob) ? glob : './' + glob
-  if (!endsWithGlob) {
-    this.push(compileGlob(relativeGlob + '/**'))
-  }
-  if (jsLikeRE.test(glob)) {
+  if (endsWithGlob) {
     this.push(compileGlob(relativeGlob))
+  } else {
+    // Append a globstar to possible directories.
+    this.push(compileGlob(relativeGlob + '/**'))
+    // Try to match specific files (must have file extension).
+    if (/\.\w+$/.test(glob)) {
+      this.push(compileGlob(relativeGlob))
+    }
   }
 }
 
