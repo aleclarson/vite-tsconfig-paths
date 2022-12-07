@@ -1,11 +1,11 @@
-import _debug from 'debug'
 import * as fs from 'fs'
-import globRex from 'globrex'
 import { resolve } from 'path'
+import { inspect } from 'util'
+import _debug from 'debug'
+import globRex from 'globrex'
 import * as tsconfck from 'tsconfck'
 import type { CompilerOptions } from 'typescript'
-import { inspect } from 'util'
-import { normalizePath, Plugin, searchForWorkspaceRoot } from 'vite'
+import { Plugin, normalizePath, searchForWorkspaceRoot } from 'vite'
 import { resolvePathMappings } from './mappings'
 import { basename, dirname, isAbsolute, join, relative } from './path'
 import { PluginOptions } from './types'
@@ -88,19 +88,11 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       resolversByDir = {}
       parsedProjects.forEach((project) => {
-        // Don't create a resolver for projects with a references array.
-        // Instead, create a resolver for each project in that array.
-        if (project.referenced) {
-          project.referenced.forEach((projectRef) => {
-            parsedProjects.add(projectRef)
-          })
-        } else {
-          const resolver = createResolver(project)
-          if (resolver) {
-            const projectDir = dirname(project.tsconfigFile)
-            const resolvers = (resolversByDir[projectDir] ||= [])
-            resolvers.push(resolver)
-          }
+        const resolver = createResolver(project)
+        if (resolver) {
+          const projectDir = dirname(project.tsconfigFile)
+          const resolvers = (resolversByDir[projectDir] ||= [])
+          resolvers.push(resolver)
         }
       })
     },
