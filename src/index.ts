@@ -147,15 +147,22 @@ export default (opts: PluginOptions = {}): Plugin => {
     project: tsconfck.TSConfckParseResult
   ): Resolver | null {
     const configPath = project.tsconfigFile
-    const configDir = dirname(configPath)
     const config = project.tsconfig as {
+      files?: string[]
       include?: string[]
       exclude?: string[]
       compilerOptions: CompilerOptions
     }
-    const options = config.compilerOptions
+
     debug('config loaded:', inspect({ configPath, config }, false, 10, true))
 
+    // Empty `files` array means no files are included.
+    if (config.files?.length == 0) {
+      debug(`[!] files array is empty: "${configPath}"`)
+      return null
+    }
+
+    const options = config.compilerOptions
     const { baseUrl, paths } = options
     if (!baseUrl && !paths) {
       debug(`[!] missing baseUrl and paths: "${configPath}"`)
@@ -216,6 +223,8 @@ export default (opts: PluginOptions = {}): Plugin => {
     } else {
       resolveId = resolveWithBaseUrl!
     }
+
+    const configDir = dirname(configPath)
 
     // When `tsconfck.parseNative` is used, the outDir is absolute,
     // which is not what `getIncluder` expects.
