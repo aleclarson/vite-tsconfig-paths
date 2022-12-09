@@ -159,7 +159,6 @@ export default (opts: PluginOptions = {}): Plugin => {
     // Empty `files` array means no files are included.
     if (config.files?.length == 0) {
       debug(`[!] files array is empty: "${configPath}"`)
-      return null
     }
 
     const options = config.compilerOptions
