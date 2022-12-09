@@ -156,9 +156,14 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     debug('config loaded:', inspect({ configPath, config }, false, 10, true))
 
-    // Empty `files` array means no files are included.
-    if (config.files?.length == 0) {
-      debug(`[!] files array is empty: "${configPath}"`)
+    // Sometimes a tsconfig is not meant to be used for path resolution,
+    // but rather for pointing to other tsconfig files and possibly
+    // being extended by them. This is represented by an explicitly
+    // empty "files" array and a missing/empty "include" array.
+    if (config.files?.length == 0 && !config.include?.length) {
+      debug(
+        `[!] skipping "${configPath}" as no files can be matched since "files" is empty and "include" is missing or empty`
+      )
       return null
     }
 
