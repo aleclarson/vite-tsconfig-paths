@@ -103,7 +103,7 @@ export default (opts: PluginOptions = {}): Plugin => {
         } else {
           const resolver = createResolver(project)
           if (resolver) {
-            const projectDir = dirname(project.tsconfigFile)
+            const projectDir = normalizePath(dirname(project.tsconfigFile))
             const resolvers = (resolversByDir[projectDir] ||= [])
             resolvers.push(resolver)
           }
@@ -146,7 +146,7 @@ export default (opts: PluginOptions = {}): Plugin => {
   function createResolver(
     project: tsconfck.TSConfckParseResult
   ): Resolver | null {
-    const configPath = project.tsconfigFile
+    const configPath = normalizePath(project.tsconfigFile)
     const config = project.tsconfig as {
       files?: string[]
       include?: string[]
