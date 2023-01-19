@@ -44,9 +44,6 @@
     "vite": "*",
     "vite-tsconfig-paths": "link:."
   },
-  "peerDependencies": {
-    "vite": ">2.0.0-0"
-  },
   "keywords": [
     "vite",
     "resolver",
