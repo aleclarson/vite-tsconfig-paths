@@ -17,7 +17,7 @@ importers:
       klona: ^2.0.4
       prettier: ^2.0.5
       rollup: ^2.45.2
-      tsconfck: ^2.0.1
+      tsconfck: ^2.1.0
       tsup: ^6.5.0
       typescript: ^4.9.3
       vite: '*'
@@ -25,7 +25,7 @@ importers:
     dependencies:
       debug: 4.3.2
       globrex: 0.1.2
-      tsconfck: 2.0.1_typescript@4.9.3
+      tsconfck: 2.1.0_typescript@4.9.3
     devDependencies:
       '@alloc/fast-rimraf': 1.0.8
       '@types/debug': 4.1.7
@@ -4561,6 +4561,7 @@ packages:
 
   /sourcemap-codec/1.4.8:
     resolution: {integrity: sha512-9NykojV5Uih4lgo5So5dtw+f0JgJX30KCNI8gwhz2J9A15wD0Ml6tjHKwf6fTSa6fAdVBdZeNOs9eJ71qCk8vA==}
+    deprecated: Please use @jridgewell/sourcemap-codec instead
     dev: true
 
   /spdx-correct/3.1.1:
@@ -4820,12 +4821,12 @@ packages:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
     dev: true
 
-  /tsconfck/2.0.1_typescript@4.9.3:
-    resolution: {integrity: sha512-/ipap2eecmVBmBlsQLBRbUmUNFwNJV/z2E+X0FPtHNjPwroMZQ7m39RMaCywlCulBheYXgMdUlWDd9rzxwMA0Q==}
-    engines: {node: ^14.13.1 || ^16 || >=18, pnpm: ^7.0.1}
+  /tsconfck/2.1.0_typescript@4.9.3:
+    resolution: {integrity: sha512-lztI9ohwclQHISVWrM/hlcgsRpphsii94DV9AQtAw2XJSVNiv+3ppdEsrL5J+xc5oTeHXe1qDqlOAGw8VSa9+Q==}
+    engines: {node: ^14.13.1 || ^16 || >=18}
     hasBin: true
     peerDependencies:
-      typescript: ^4.3.5
+      typescript: ^4.3.5 || ^5.0.0
     peerDependenciesMeta:
       typescript:
         optional: true
