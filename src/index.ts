@@ -151,7 +151,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       files?: string[]
       include?: string[]
       exclude?: string[]
-      compilerOptions: CompilerOptions
+      compilerOptions?: CompilerOptions
     }
 
     debug('config loaded:', inspect({ configPath, config }, false, 10, true))
@@ -167,7 +167,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       return null
     }
 
-    const options = config.compilerOptions
+    const options = config.compilerOptions || {}
     const { baseUrl, paths } = options
     if (!baseUrl && !paths) {
       debug(`[!] missing baseUrl and paths: "${configPath}"`)
