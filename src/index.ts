@@ -76,18 +76,33 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
+      const parseOptions = {
+        resolveWithEmptyIfConfigNotFound: true,
+      } satisfies import('tsconfck').TSConfckParseOptions
+
       const parsedProjects = new Set(
-        await Promise.all(
-          projects.map((tsconfigFile) =>
-            hasTypeScriptDep
-              ? tsconfck.parseNative(tsconfigFile)
-              : tsconfck.parse(tsconfigFile)
+        (
+          await Promise.all(
+            projects.map((tsconfigFile) =>
+              hasTypeScriptDep
+                ? tsconfck.parseNative(tsconfigFile, parseOptions)
+                : tsconfck.parse(tsconfigFile, parseOptions)
+            )
           )
-        )
+        ).filter((project, i) => {
+          if (project.tsconfigFile !== 'no_tsconfig_file_found') {
+            return true
+          }
+          debug('tsconfig file not found:', projects[i])
+          return false
+        })
       )
 
       resolversByDir = {}
       parsedProjects.forEach((project) => {
+        if (!project) {
+          return
+        }
         // Don't create a resolver for projects with a references array.
         // Instead, create a resolver for each project in that array.
         if (project.referenced) {
