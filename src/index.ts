@@ -34,11 +34,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       let projectRoot = config.root
       let workspaceRoot!: string
 
-      let { root, silent } = opts
-      const tsconfckOptions = {
-        resolveWithEmptyIfConfigNotFound: silent
-      }
-      
+      let { root } = opts
       if (root) {
         root = resolve(projectRoot, root)
       } else {
@@ -84,17 +80,14 @@ export default (opts: PluginOptions = {}): Plugin => {
         await Promise.all(
           projects.map((tsconfigFile) =>
             hasTypeScriptDep
-              ? tsconfck.parseNative(tsconfigFile, tsconfckOptions)
-              : tsconfck.parse(tsconfigFile, tsconfckOptions)
+              ? tsconfck.parseNative(tsconfigFile)
+              : tsconfck.parse(tsconfigFile)
           )
         )
       )
 
       resolversByDir = {}
       parsedProjects.forEach((project) => {
-        if(project.tsconfigFile === "no_tsconfig_file_found"){
-          return
-        }
         // Don't create a resolver for projects with a references array.
         // Instead, create a resolver for each project in that array.
         if (project.referenced) {

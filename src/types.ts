@@ -38,12 +38,6 @@ export interface PluginOptions {
    * necessary.
    */
   parseNative?: boolean
-  /**
-    * Enable use of `tsconfck.resolveWithEmptyIfConfigNotFound`.
-    * If set to false (the default), the plugin will throw an error if no tsconfig file is found.
-    * @default false
-    */
-  silent?: boolean
 }
 
 export interface TSConfig {
