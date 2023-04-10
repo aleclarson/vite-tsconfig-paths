@@ -167,7 +167,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       return null
     }
 
-    const options = config.compilerOptions
+    const options = config.compilerOptions || {}
     const { baseUrl, paths } = options
     if (!baseUrl && !paths) {
       debug(`[!] missing baseUrl and paths: "${configPath}"`)
