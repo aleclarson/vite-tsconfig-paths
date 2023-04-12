@@ -100,7 +100,9 @@ export default (opts: PluginOptions = {}): Plugin => {
                         : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
                     { error }
                   )
-                  console.error(error)
+                  if (config.logger.hasErrorLogged(error)) {
+                    console.error(error)
+                  }
                   firstError = error
                 }
                 return null
