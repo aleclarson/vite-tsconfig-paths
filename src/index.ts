@@ -76,6 +76,8 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
+      let firstError: any
+
       const parseOptions = {
         resolveWithEmptyIfConfigNotFound: true,
       } satisfies import('tsconfck').TSConfckParseOptions
@@ -84,12 +86,33 @@ export default (opts: PluginOptions = {}): Plugin => {
         (
           await Promise.all(
             projects.map((tsconfigFile) =>
-              hasTypeScriptDep
+              (hasTypeScriptDep
                 ? tsconfck.parseNative(tsconfigFile, parseOptions)
                 : tsconfck.parse(tsconfigFile, parseOptions)
+              ).catch((error) => {
+                if (!opts.ignoreConfigErrors) {
+                  config.logger.error(
+                    '[tsconfig-paths] An error occurred while parsing "' +
+                      tsconfigFile +
+                      '". See below for details.' +
+                      (firstError
+                        ? ''
+                        : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
+                    { error }
+                  )
+                  if (config.logger.hasErrorLogged(error)) {
+                    console.error(error)
+                  }
+                  firstError = error
+                }
+                return null
+              })
             )
           )
         ).filter((project, i) => {
+          if (!project) {
+            return false
+          }
           if (project.tsconfigFile !== 'no_tsconfig_file_found') {
             return true
           }

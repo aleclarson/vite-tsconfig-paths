@@ -62,6 +62,9 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
   600ms, due to the size of the TypeScript compiler. Only use it when
   necessary.
 
+- `ignoreConfigErrors: boolean`  
+  When true, parsing errors encountered while loading tsconfig files will be ignored. This is useful if you have a monorepo with multiple tsconfig files, and you don't want to see errors for the ones that aren't relevant to the current project.
+
 &nbsp;
 
 ### allowJs

@@ -38,6 +38,10 @@ export interface PluginOptions {
    * necessary.
    */
   parseNative?: boolean
+  /**
+   * Silence the warning about malformed `tsconfig.json` files.
+   */
+  ignoreConfigErrors?: boolean
 }
 
 export interface TSConfig {
