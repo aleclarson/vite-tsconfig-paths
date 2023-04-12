@@ -83,15 +83,11 @@ export default (opts: PluginOptions = {}): Plugin => {
       const parsedProjects = new Set(
         (
           await Promise.all(
-            projects.map(async (tsconfigFile) => {
-              try {
-                return hasTypeScriptDep
-                  ? await tsconfck.parseNative(tsconfigFile, parseOptions)
-                  : await tsconfck.parse(tsconfigFile, parseOptions)
-              } catch (_) {
-                return { tsconfigFile: 'no_tsconfig_file_found' } as tsconfck.TSConfckParseResult
-              }
-            })
+            projects.map((tsconfigFile) =>
+              hasTypeScriptDep
+                ? tsconfck.parseNative(tsconfigFile, parseOptions)
+                : tsconfck.parse(tsconfigFile, parseOptions)
+            )
           )
         ).filter((project, i) => {
           if (project.tsconfigFile !== 'no_tsconfig_file_found') {
@@ -266,8 +262,8 @@ export default (opts: PluginOptions = {}): Plugin => {
     const importerExtRE = opts.loose
       ? /./
       : options.allowJs || basename(configPath).startsWith('jsconfig.')
-        ? jsLikeRE
-        : /\.[mc]?tsx?$/
+      ? jsLikeRE
+      : /\.[mc]?tsx?$/
 
     const resolutionCache = new Map<string, string>()
     return async (viteResolve, id, importer) => {
