@@ -79,6 +79,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       let firstError: any
 
       const parseOptions = {
+        cache: new Map(),
         resolveWithEmptyIfConfigNotFound: true,
       } satisfies import('tsconfck').TSConfckParseOptions
 
