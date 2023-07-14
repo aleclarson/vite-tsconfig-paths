@@ -23,6 +23,17 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 1. Install as dev dependency
 
+   ```sh
+   # npm
+   npm install --save-dev vite-tsconfig-paths
+
+   # yarn
+   yarn add -D vite-tsconfig-paths
+
+   # pnpm
+   pnpm add -D vite-tsconfig-paths
+   ```
+
 2. Inject `vite-tsconfig-paths` using the `vite.config.ts` module
 
    ```ts
