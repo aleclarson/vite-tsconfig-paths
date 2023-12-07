@@ -149,10 +149,10 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       })
     },
-    async resolveId(id, importer) {
+    async resolveId(id, importer, options) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
         const viteResolve: ViteResolve = async (id, importer) =>
-          (await this.resolve(id, importer, { skipSelf: true }))?.id
+          (await this.resolve(id, importer, options))?.id
 
         let prevProjectDir: string | undefined
         let projectDir = dirname(importer)
