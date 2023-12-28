@@ -151,8 +151,10 @@ export default (opts: PluginOptions = {}): Plugin => {
     },
     async resolveId(id, importer, options) {
       if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
+        // For Vite 4 and under, skipSelf needs to be set.
+        const resolveOptions = { ...options, skipSelf: true }
         const viteResolve: ViteResolve = async (id, importer) =>
-          (await this.resolve(id, importer, options))?.id
+          (await this.resolve(id, importer, resolveOptions))?.id
 
         let prevProjectDir: string | undefined
         let projectDir = dirname(importer)
