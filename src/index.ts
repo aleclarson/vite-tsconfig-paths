@@ -227,7 +227,7 @@ export default (opts: PluginOptions = {}): Plugin => {
     if (paths) {
       const pathMappings = resolvePathMappings(
         paths,
-        options.baseUrl ?? dirname(configPath)
+        baseUrl ?? dirname(configPath)
       )
       const resolveWithPaths: InternalResolver = async (
         viteResolve,
