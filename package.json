@@ -25,7 +25,7 @@
   "dependencies": {
     "debug": "^4.1.1",
     "globrex": "^0.1.2",
-    "tsconfck": "^2.1.0"
+    "tsconfck": "^3.0.1"
   },
   "devDependencies": {
     "@alloc/fast-rimraf": "^1.0.8",

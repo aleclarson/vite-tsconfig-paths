@@ -51,11 +51,19 @@ export default (opts: PluginOptions = {}): Plugin => {
         workspaceRoot = root
       }
 
-      const projects = await resolveProjectPaths(
-        opts.projects,
-        projectRoot,
-        workspaceRoot
-      )
+      const projects = opts.projects
+        ? opts.projects.map((file) => {
+            if (!file.endsWith('.json')) {
+              file = join(file, 'tsconfig.json')
+            }
+            return resolve(projectRoot, file)
+          })
+        : await tsconfck.findAll(workspaceRoot, {
+            configNames: opts.configNames || ['tsconfig.json', 'jsconfig.json'],
+            skip(dir) {
+              return dir == 'node_modules' || dir == '.git'
+            },
+          })
 
       debug('projects:', projects)
 
@@ -78,48 +86,43 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       let firstError: any
 
-      const parseOptions = {
-        cache: new Map(),
-        resolveWithEmptyIfConfigNotFound: true,
-      } satisfies import('tsconfck').TSConfckParseOptions
+      const parseOptions: tsconfck.TSConfckParseOptions = {
+        cache: new tsconfck.TSConfckCache(),
+      }
 
       const parsedProjects = new Set(
-        (
-          await Promise.all(
-            projects.map((tsconfigFile) =>
-              (hasTypeScriptDep
+        await Promise.all(
+          projects.map((tsconfigFile) => {
+            if (tsconfigFile === null) {
+              debug('tsconfig file not found:', tsconfigFile)
+              return null
+            }
+            return (
+              hasTypeScriptDep
                 ? tsconfck.parseNative(tsconfigFile, parseOptions)
                 : tsconfck.parse(tsconfigFile, parseOptions)
-              ).catch((error) => {
-                if (!opts.ignoreConfigErrors) {
-                  config.logger.error(
-                    '[tsconfig-paths] An error occurred while parsing "' +
-                      tsconfigFile +
-                      '". See below for details.' +
-                      (firstError
-                        ? ''
-                        : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
-                    { error }
-                  )
-                  if (config.logger.hasErrorLogged(error)) {
-                    console.error(error)
-                  }
-                  firstError = error
+            ).catch((error) => {
+              if (opts.ignoreConfigErrors) {
+                debug('tsconfig file caused a parsing error:', tsconfigFile)
+              } else {
+                config.logger.error(
+                  '[tsconfig-paths] An error occurred while parsing "' +
+                    tsconfigFile +
+                    '". See below for details.' +
+                    (firstError
+                      ? ''
+                      : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
+                  { error }
+                )
+                if (config.logger.hasErrorLogged(error)) {
+                  console.error(error)
                 }
-                return null
-              })
-            )
-          )
-        ).filter((project, i) => {
-          if (!project) {
-            return false
-          }
-          if (project.tsconfigFile !== 'no_tsconfig_file_found') {
-            return true
-          }
-          debug('tsconfig file not found:', projects[i])
-          return false
-        })
+                firstError = error
+              }
+              return null
+            })
+          })
+        )
       )
 
       resolversByDir = {}
@@ -398,24 +401,4 @@ function compileGlob(glob: string) {
     extended: true,
     globstar: true,
   }).regex
-}
-
-function resolveProjectPaths(
-  projects: string[] | undefined,
-  projectRoot: string,
-  workspaceRoot: string
-) {
-  if (projects) {
-    return projects.map((file) => {
-      if (!file.endsWith('.json')) {
-        file = join(file, 'tsconfig.json')
-      }
-      return resolve(projectRoot, file)
-    })
-  }
-  return tsconfck.findAll(workspaceRoot, {
-    skip(dir) {
-      return dir == 'node_modules' || dir == '.git'
-    },
-  })
 }

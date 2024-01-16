@@ -42,6 +42,11 @@ export interface PluginOptions {
    * Silence the warning about malformed `tsconfig.json` files.
    */
   ignoreConfigErrors?: boolean
+  /**
+   * An array of `tsconfig.json` file names to search for.
+   * @default ["tsconfig.json", "jsconfig.json"]
+   */
+  configNames?: string[]
 }
 
 export interface TSConfig {
