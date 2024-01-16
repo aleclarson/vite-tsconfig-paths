@@ -2,7 +2,7 @@ import _debug from 'debug'
 import * as fs from 'fs'
 import globRex from 'globrex'
 import { resolve } from 'path'
-import * as tsconfck from 'tsconfck'
+import type { TSConfckParseOptions, TSConfckParseResult } from 'tsconfck'
 import type { CompilerOptions } from 'typescript'
 import { inspect } from 'util'
 import { normalizePath, Plugin, searchForWorkspaceRoot } from 'vite'
@@ -51,6 +51,8 @@ export default (opts: PluginOptions = {}): Plugin => {
         workspaceRoot = root
       }
 
+      const tsconfck = await import('tsconfck')
+
       const projects = opts.projects
         ? opts.projects.map((file) => {
             if (!file.endsWith('.json')) {
@@ -86,7 +88,7 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       let firstError: any
 
-      const parseOptions: tsconfck.TSConfckParseOptions = {
+      const parseOptions: TSConfckParseOptions = {
         cache: new tsconfck.TSConfckCache(),
       }
 
@@ -187,9 +189,7 @@ export default (opts: PluginOptions = {}): Plugin => {
     },
   }
 
-  function createResolver(
-    project: tsconfck.TSConfckParseResult
-  ): Resolver | null {
+  function createResolver(project: TSConfckParseResult): Resolver | null {
     const configPath = normalizePath(project.tsconfigFile)
     const config = project.tsconfig as {
       files?: string[]
