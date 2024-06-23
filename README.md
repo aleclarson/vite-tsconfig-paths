@@ -1,10 +1,6 @@
-👋 Do you like **Postgres** 🐘? I'm making a [100% type-safe query builder](https://github.com/alloc/tusken) (not an ORM), and **I want your help** fleshing it out.  
-<sub>
-Btw, it generates the types and client from your database schema, so it's never out-of-date and you have access to [every native Postgres function](https://github.com/alloc/tusken/blob/master/spec/generated/test/functions.ts)!  
- I want to add a [powerful plugin system](https://github.com/alloc/tusken/issues/11) soon, and eventually all functionality will be pluggable.
-</sub>
+👋 Are you a fan of the **Radash** library? I've forked it in hopes of starting a better maintained version with multiple active maintainers.
 
-[**Learn more**](https://github.com/alloc/tusken)
+Join me! https://github.com/aleclarson/radashi
 
 ---
 
