@@ -1,5 +1,6 @@
+import { strict as assert } from 'assert'
 import _debug from 'debug'
-import * as fs from 'fs'
+import * as fs from 'fs/promises'
 import globRex from 'globrex'
 import { resolve } from 'path'
 import type { TSConfckParseOptions, TSConfckParseResult } from 'tsconfck'
@@ -72,7 +73,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       let hasTypeScriptDep = false
       if (opts.parseNative) {
         try {
-          const pkgJson = fs.readFileSync(
+          const pkgJson = await fs.readFile(
             join(workspaceRoot, 'package.json'),
             'utf8'
           )
@@ -94,15 +95,15 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       const parsedProjects = new Set(
         await Promise.all(
-          projects.map((tsconfigFile) => {
+          projects.map(async (tsconfigFile) => {
             if (tsconfigFile === null) {
               debug('tsconfig file not found:', tsconfigFile)
               return null
             }
-            return (
-              hasTypeScriptDep
-                ? tsconfck.parseNative(tsconfigFile, parseOptions)
-                : tsconfck.parse(tsconfigFile, parseOptions)
+            const parsedImports = await parseImports(tsconfigFile)
+            const parsedProject = await (hasTypeScriptDep
+              ? tsconfck.parseNative(tsconfigFile, parseOptions)
+              : tsconfck.parse(tsconfigFile, parseOptions)
             ).catch((error) => {
               if (opts.ignoreConfigErrors) {
                 debug('tsconfig file caused a parsing error:', tsconfigFile)
@@ -123,6 +124,17 @@ export default (opts: PluginOptions = {}): Plugin => {
               }
               return null
             })
+
+            if (parsedProject?.tsconfig && parsedImports) {
+              parsedProject.tsconfig.compilerOptions = {
+                ...parsedProject.tsconfig.compilerOptions,
+                paths: {
+                  ...parsedProject.tsconfig.compilerOptions?.paths,
+                  ...parsedImports,
+                },
+              }
+            }
+            return parsedProject
           })
         )
       )
@@ -187,6 +199,24 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
     },
+  }
+
+  async function parseImports(tsconfigFile: string) {
+    const pkgJson = await fs
+      .readFile(join(tsconfigFile, '..', 'package.json'), 'utf8')
+      .catch(() => null)
+    assert(pkgJson, 'package.json should exist relative to the tsconfig file')
+
+    const pkg = JSON.parse(pkgJson)
+    if (!pkg.imports) return null
+
+    return Object.entries(pkg.imports).reduce<Record<string, string[]>>(
+      (acc, [key, val]) => {
+        acc[key] = Array.isArray(val) ? val : [val]
+        return acc
+      },
+      {}
+    )
   }
 
   function createResolver(project: TSConfckParseResult): Resolver | null {
