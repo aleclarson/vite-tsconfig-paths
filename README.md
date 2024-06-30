@@ -1,8 +1,10 @@
-👋 Are you a fan of the **Radash** library? I've forked it in hopes of starting a better maintained version with multiple active maintainers.
+👋 Check out [Radashi](https://github.com/radashi-org/radashi), my latest endeavor.
 
-Join me! https://github.com/aleclarson/radashi
+<a href="https://github.com/radashi-org/radashi"><img src="https://github.com/radashi-org/radashi/raw/main/.github/img/notice.png" alt="Radashi" width="100%" /></a>
 
 ---
+
+&nbsp;
 
 # vite-tsconfig-paths
 
