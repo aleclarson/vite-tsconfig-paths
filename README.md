@@ -19,7 +19,9 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 1. Install as dev dependency
 
-2. Inject `vite-tsconfig-paths` using the `vite.config.ts` module
+2. Ensure the project either has `"type": "module"` set or that the Vite config is renamed to `vite.config.mjs` / `vite.config.mts` depending on whether TypeScript is used
+
+3. Inject `vite-tsconfig-paths` in the Vite config
 
    ```ts
    import { defineConfig } from 'vite'
