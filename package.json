@@ -1,6 +1,6 @@
 {
   "name": "vite-tsconfig-paths",
-  "version": "4.3.2",
+  "version": "5.0.0",
   "description": "Vite resolver for TypeScript compilerOptions.paths",
   "type": "module",
   "exports": {
