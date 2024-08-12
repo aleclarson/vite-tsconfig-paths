@@ -61,6 +61,12 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 - `ignoreConfigErrors: boolean`  
   When true, parsing errors encountered while loading tsconfig files will be ignored. This is useful if you have a monorepo with multiple tsconfig files, and you don't want to see errors for the ones that aren't relevant to the current project.
 
+- `skip: (dir: string) => boolean`
+  When returns true, excludes the directory from crawling for tsconfig.json. By default skips `.git` and `node_modules`
+  
+  Useful in large monorpeos
+
+
 &nbsp;
 
 ### allowJs
