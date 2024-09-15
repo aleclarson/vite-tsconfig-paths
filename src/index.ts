@@ -166,7 +166,7 @@ export default (opts: PluginOptions = {}): Plugin => {
 
         // Find the nearest directory with a matching tsconfig file.
         loop: while (projectDir && projectDir != prevProjectDir) {
-          const resolvers = resolversByDir[projectDir]
+          const resolvers = resolversByDir[normalizePath(projectDir)]
           if (resolvers)
             for (const resolve of resolvers) {
               const [resolved, matched] = await resolve(
