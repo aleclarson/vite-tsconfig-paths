@@ -31,6 +31,7 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
      plugins: [tsconfigPaths()],
    })
    ```
+4. (optional) ⚠️ To ensure the correct resolution of custom file formats such as `.vue`, `.svelte`, `.mdx` etc using a **custom compiler**, set the `allowJs` option to true in your `tsconfig.json` file. Or enable `loose: true` to resolve all files.
 
 **Note:** You need to restart Vite when you update your `paths` mappings.
 
