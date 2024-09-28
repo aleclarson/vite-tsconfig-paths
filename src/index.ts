@@ -224,9 +224,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       importer: string
     ) => Promise<string | undefined>
 
-    const resolveWithBaseUrl: InternalResolver | undefined = baseUrl
-      ? (viteResolve, id, importer) => viteResolve(join(baseUrl, id), importer)
-      : undefined
+    const resolveWithBaseUrl: InternalResolver = (viteResolve, id, importer) => viteResolve(id, importer)
 
     let resolveId: InternalResolver
     if (paths) {
@@ -270,7 +268,7 @@ export default (opts: PluginOptions = {}): Plugin => {
         resolveId = resolveWithPaths
       }
     } else {
-      resolveId = resolveWithBaseUrl!
+      resolveId = resolveWithBaseUrl
     }
 
     const configDir = dirname(configPath)
