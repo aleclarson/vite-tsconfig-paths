@@ -47,6 +47,11 @@ export interface PluginOptions {
    * @default ["tsconfig.json", "jsconfig.json"]
    */
   configNames?: string[]
+  /**
+   * When returns true, excludes the directory from crawling for tsconfig.json.
+   * @default  (dir) => dir == 'node_modules' || dir == '.git'
+   */
+  skip?: (dir: string) => boolean
 }
 
 export interface TSConfig {
