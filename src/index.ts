@@ -331,15 +331,16 @@ export default (opts: PluginOptions = {}): Plugin => {
       let path = resolutionCache.get(id)
       if (!path) {
         path = await resolveId(viteResolve, id, importer)
-        if (path) {
-          resolutionCache.set(id, path)
-          debug(`resolved:`, {
-            id,
-            importer,
-            resolvedId: path,
-            configPath,
-          })
+        if (!path) {
+          return noMatch
         }
+        resolutionCache.set(id, path)
+        debug(`resolved:`, {
+          id,
+          importer,
+          resolvedId: path,
+          configPath,
+        })
       }
       return [path && suffix ? path + suffix : path, true]
     }
@@ -408,4 +409,3 @@ function compileGlob(glob: string) {
     globstar: true,
   }).regex
 }
-
