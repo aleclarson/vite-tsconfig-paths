@@ -32,9 +32,9 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
    })
    ```
 
-4. (optional) ⚠️ To enable path resolution in non-TypeScript modules (e.g. `.vue`, `.svelte`, `.mdx`), you must set the `allowJs` option to true in your `tsconfig.json` file. If that doesn't work, you might need to enable `loose: true` to resolve all files. Note that, due to a Vite limitation, CSS files (and CSS dialects) cannot be resolved with this plugin (see #30).
+4. (optional) ⚠️ To enable path resolution in non-TypeScript modules (e.g. `.vue`, `.svelte`, `.mdx`), you must set the `allowJs` option to true in your `tsconfig.json` file. If that doesn't work, you might need to enable `loose: true` to resolve all files. Note that, due to a Vite limitation, CSS files (and CSS dialects) cannot be resolved with this plugin (see [#30](https://github.com/aleclarson/vite-tsconfig-paths/issues/30)).
 
-**Note:** You need to restart Vite when you update your `paths` mappings. This is being tracked in #17 (contributions welcome).
+**Note:** You need to restart Vite when you update your `paths` mappings. This is being tracked in [#17](https://github.com/aleclarson/vite-tsconfig-paths/issues/17) (contributions welcome).
 
 ### Options
 
