@@ -63,7 +63,13 @@ export default (opts: PluginOptions = {}): Plugin => {
         : await tsconfck.findAll(workspaceRoot, {
             configNames: opts.configNames || ['tsconfig.json', 'jsconfig.json'],
             skip(dir) {
-              return dir == 'node_modules' || dir == '.git'
+              if (dir === '.git' || dir === 'node_modules') {
+                return true
+              }
+              if (typeof opts.skip === 'function') {
+                return opts.skip(dir)
+              }
+              return false
             },
           })
 
@@ -402,3 +408,4 @@ function compileGlob(glob: string) {
     globstar: true,
   }).regex
 }
+

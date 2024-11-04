@@ -47,6 +47,12 @@ export interface PluginOptions {
    * @default ["tsconfig.json", "jsconfig.json"]
    */
   configNames?: string[]
+  /**
+   * A function that determines which directories to skip when searching for tsconfig.json files.
+   * While `.git` and `node_modules` directories are always skipped, this option allows you to skip
+   * additional directories, which is useful in large monorepos to improve performance.
+   */
+  skip?: (dir: string) => boolean
 }
 
 export interface TSConfig {
