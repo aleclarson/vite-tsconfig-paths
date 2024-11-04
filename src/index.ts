@@ -55,15 +55,18 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       const projects = opts.projects
         ? opts.projects.map((file) => {
-          if (!file.endsWith('.json')) {
-            file = join(file, 'tsconfig.json')
-          }
-          return resolve(projectRoot, file)
-        })
+            if (!file.endsWith('.json')) {
+              file = join(file, 'tsconfig.json')
+            }
+            return resolve(projectRoot, file)
+          })
         : await tsconfck.findAll(workspaceRoot, {
-          configNames: opts.configNames || ['tsconfig.json', 'jsconfig.json'],
-          skip: typeof opts.skip === 'function' ? opts.skip : (dir) => dir == 'node_modules' || dir == '.git',
-        })
+            configNames: opts.configNames || ['tsconfig.json', 'jsconfig.json'],
+            skip:
+              typeof opts.skip === 'function'
+                ? opts.skip
+                : (dir) => dir == 'node_modules' || dir == '.git',
+          })
 
       debug('projects:', projects)
 
@@ -107,11 +110,11 @@ export default (opts: PluginOptions = {}): Plugin => {
               } else {
                 config.logger.error(
                   '[tsconfig-paths] An error occurred while parsing "' +
-                  tsconfigFile +
-                  '". See below for details.' +
-                  (firstError
-                    ? ''
-                    : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
+                    tsconfigFile +
+                    '". See below for details.' +
+                    (firstError
+                      ? ''
+                      : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
                   { error }
                 )
                 if (config.logger.hasErrorLogged(error)) {
@@ -289,8 +292,8 @@ export default (opts: PluginOptions = {}): Plugin => {
     const importerExtRE = opts.loose
       ? /./
       : options.allowJs || basename(configPath).startsWith('jsconfig.')
-        ? jsLikeRE
-        : /\.[mc]?tsx?$/
+      ? jsLikeRE
+      : /\.[mc]?tsx?$/
 
     const resolutionCache = new Map<string, string>()
     return async (viteResolve, id, importer) => {
