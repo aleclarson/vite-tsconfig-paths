@@ -168,7 +168,7 @@ export default (opts: PluginOptions = {}): Plugin => {
           (await this.resolve(id, importer, resolveOptions))?.id
 
         let prevProjectDir: string | undefined
-        let projectDir = dirname(importer)
+        let projectDir = normalizePath(dirname(importer))
 
         // Find the nearest directory with a matching tsconfig file.
         loop: while (projectDir && projectDir != prevProjectDir) {
