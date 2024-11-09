@@ -289,8 +289,8 @@ export default (opts: PluginOptions = {}): Plugin => {
     }
 
     const isIncludedRelative = getIncluder(
-      config.include,
-      config.exclude,
+      config.include?.map((p) => relative(configDir, p)),
+      config.exclude?.map((p) => relative(configDir, p)),
       outDir
     )
 

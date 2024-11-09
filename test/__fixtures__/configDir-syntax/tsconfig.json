@@ -1,0 +1,13 @@
+{
+  "include": ["${configDir}/*.ts"],
+  "exclude": ["dist", "vite.config.ts"],
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "rootDir": ".",
+    "paths": {
+      "~/*": ["${configDir}/*"]
+    }
+  }
+}
