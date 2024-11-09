@@ -289,8 +289,8 @@ export default (opts: PluginOptions = {}): Plugin => {
     }
 
     const isIncludedRelative = getIncluder(
-      config.include?.map((p) => relative(configDir, p)),
-      config.exclude?.map((p) => relative(configDir, p)),
+      config.include?.map((p) => ensureRelative(configDir, p)),
+      config.exclude?.map((p) => ensureRelative(configDir, p)),
       outDir
     )
 
@@ -408,4 +408,8 @@ function compileGlob(glob: string) {
     extended: true,
     globstar: true,
   }).regex
+}
+
+function ensureRelative(dir: string, path: string) {
+  return isAbsolute(path) ? relative(dir, path) : path
 }
