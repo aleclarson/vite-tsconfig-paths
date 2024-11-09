@@ -17,7 +17,8 @@
     "dev": "yarn bundle --watch",
     "build": "yarn clean && yarn bundle",
     "bundle": "tsup-node src/index.ts --sourcemap --dts --format esm",
-    "prepare": "yarn build"
+    "prepare": "yarn build",
+    "test": "vitest"
   },
   "dependencies": {
     "debug": "^4.1.1",
@@ -30,13 +31,15 @@
     "@types/globrex": "^0.1.0",
     "@types/node": "^22.2.0",
     "esbuild": "^0.11.12",
+    "execa": "^9.5.1",
     "klona": "^2.0.4",
     "prettier": "^2.8.7",
     "rollup": "^2.45.2",
     "tsup": "^6.5.0",
-    "typescript": "^5.5.4",
-    "vite": "*",
-    "vite-tsconfig-paths": "link:."
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vite-tsconfig-paths": "link:.",
+    "vitest": "^2.1.4"
   },
   "peerDependencies": {
     "vite": "*"
