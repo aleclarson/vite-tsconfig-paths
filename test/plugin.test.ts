@@ -1,4 +1,4 @@
-import { readdirSync, writeFileSync } from 'fs'
+import { readdirSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { execa } from 'execa'
 import * as vite from 'vite'
@@ -12,31 +12,33 @@ for (const name of readdirSync(fixturesDir)) {
   const fixtureDir = join(fixturesDir, name)
 
   test.concurrent(name, async () => {
-    await Promise.all([
-      expectTscToSucceed(fixtureDir),
-      expectViteToSucceed(fixtureDir),
-    ])
+    const config = readTestConfig(fixtureDir)
+
+    await Promise.all([expectTscToSucceed(config), expectViteToSucceed(config)])
   })
 }
 
-async function expectTscToSucceed(fixtureDir: string) {
-  const { exitCode, stderr } = await execa(
+async function expectTscToSucceed(config: TestConfig) {
+  const { exitCode, signal, stderr } = await execa(
     tscBinPath,
     ['-p', '.', '--declaration', '--emitDeclarationOnly', '--outDir', 'dist'],
     {
-      cwd: fixtureDir,
+      cwd: config.root,
       reject: false,
     }
   )
-  expect(stderr).toBe('')
-  expect(exitCode).toBe(0)
+  expect({ exitCode, signal, stderr }).toEqual({
+    exitCode: 0,
+    signal: undefined,
+    stderr: '',
+  })
 }
 
-async function expectViteToSucceed(fixtureDir: string) {
+async function expectViteToSucceed(config: TestConfig) {
   await expect(
     vite.build({
       configFile: false,
-      root: fixtureDir,
+      root: config.root,
       plugins: [tsconfigPaths()],
       logLevel: 'error',
       build: {
@@ -47,4 +49,24 @@ async function expectViteToSucceed(fixtureDir: string) {
       },
     })
   ).resolves.not.toThrow()
+}
+
+type TestConfig = ReturnType<typeof readTestConfig>
+
+function readTestConfig(fixtureDir: string) {
+  let config: {
+    root?: string
+  }
+  try {
+    config = JSON.parse(readFileSync(join(fixtureDir, 'config.json'), 'utf-8'))
+    if (config.root) {
+      config.root = resolve(fixtureDir, config.root)
+    }
+  } catch {
+    config = {}
+  }
+  return {
+    root: fixtureDir,
+    ...config,
+  }
 }
