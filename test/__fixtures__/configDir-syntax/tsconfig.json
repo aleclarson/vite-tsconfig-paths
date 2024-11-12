@@ -1,6 +1,6 @@
 {
   "include": ["${configDir}/*.ts"],
-  "exclude": ["dist", "vite.config.ts"],
+  "exclude": ["dist"],
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "bundler",
