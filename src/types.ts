@@ -53,6 +53,11 @@ export interface PluginOptions {
    * additional directories, which is useful in large monorepos to improve performance.
    */
   skip?: (dir: string) => boolean
+  /**
+    * Skip certain paths in your tsconfig that you don't want resoluation for
+    */
+  skipPaths?: string[]
+
 }
 
 export interface TSConfig {
