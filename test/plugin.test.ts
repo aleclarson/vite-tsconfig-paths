@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { execa } from 'execa'
 import * as vite from 'vite'
-import tsconfigPaths from '../src/index.js'
+import tsconfigPaths, { type PluginOptions } from '../src/index.js'
 
 const tscBinPath = resolve(__dirname, '../node_modules/.bin/tsc')
 
@@ -39,7 +39,7 @@ async function expectViteToSucceed(config: TestConfig) {
     vite.build({
       configFile: false,
       root: config.root,
-      plugins: [tsconfigPaths()],
+      plugins: [tsconfigPaths(config.options)],
       logLevel: 'error',
       build: {
         lib: {
@@ -55,7 +55,10 @@ type TestConfig = ReturnType<typeof readTestConfig>
 
 function readTestConfig(fixtureDir: string) {
   let config: {
+    /** Vite project root */
     root?: string
+    /** Plugin options */
+    options?: PluginOptions
   }
   try {
     config = JSON.parse(readFileSync(join(fixtureDir, 'config.json'), 'utf-8'))
@@ -68,5 +71,9 @@ function readTestConfig(fixtureDir: string) {
   return {
     root: fixtureDir,
     ...config,
+    options: {
+      ...config.options,
+      root: resolve(fixtureDir, config.options?.root ?? config.root ?? ''),
+    },
   }
 }
