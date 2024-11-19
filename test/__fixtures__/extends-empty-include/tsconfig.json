@@ -6,6 +6,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "files": [],
+  "include": [],
   "references": [{ "path": "./src/" }]
 }
