@@ -9,8 +9,7 @@ import { normalizePath, Plugin, searchForWorkspaceRoot } from 'vite'
 import { resolvePathMappings } from './mappings'
 import { basename, dirname, isAbsolute, join, relative } from './path'
 import { PluginOptions } from './types'
-
-const debug = _debug('vite-tsconfig-paths')
+import { debug, debugResolve } from './debug'
 
 const noMatch = [undefined, false] as [undefined, false]
 
@@ -161,36 +160,52 @@ export default (opts: PluginOptions = {}): Plugin => {
       })
     },
     async resolveId(id, importer, options) {
-      if (importer && !relativeImportRE.test(id) && !isAbsolute(id)) {
-        // For Vite 4 and under, skipSelf needs to be set.
-        const resolveOptions = { ...options, skipSelf: true }
-        const viteResolve: ViteResolve = async (id, importer) =>
-          (await this.resolve(id, importer, resolveOptions))?.id
+      if (debugResolve.enabled) {
+        debugResolve('resolving:', { id, importer })
+      }
 
-        let prevProjectDir: string | undefined
-        let projectDir = normalizePath(dirname(importer))
+      if (!importer) {
+        debugResolve('importer is empty or undefined. skipping...')
+        return
+      }
+      if (relativeImportRE.test(id)) {
+        debugResolve('id is a relative import. skipping...')
+        return
+      }
+      if (isAbsolute(id)) {
+        debugResolve('id is an absolute path. skipping...')
+        return
+      }
+      if (id.includes('\0')) {
+        debugResolve('id is a virtual module. skipping...')
+        return
+      }
 
-        // Find the nearest directory with a matching tsconfig file.
-        loop: while (projectDir && projectDir != prevProjectDir) {
-          const resolvers = resolversByDir[projectDir]
-          if (resolvers)
-            for (const resolve of resolvers) {
-              const [resolved, matched] = await resolve(
-                viteResolve,
-                id,
-                importer
-              )
-              if (resolved) {
-                return resolved
-              }
-              if (matched) {
-                // Once a matching resolver is found, stop looking.
-                break loop
-              }
+      // For Vite 4 and under, skipSelf needs to be set.
+      const resolveOptions = { ...options, skipSelf: true }
+      const viteResolve: ViteResolve = async (id, importer) =>
+        (await this.resolve(id, importer, resolveOptions))?.id
+
+      let prevProjectDir: string | undefined
+      let projectDir = normalizePath(dirname(importer))
+
+      // Find the nearest directory with a matching tsconfig file.
+      loop: while (projectDir && projectDir != prevProjectDir) {
+        const resolvers = resolversByDir[projectDir]
+        if (resolvers) {
+          for (const resolve of resolvers) {
+            const [resolved, matched] = await resolve(viteResolve, id, importer)
+            if (resolved) {
+              return resolved
             }
-          prevProjectDir = projectDir
-          projectDir = dirname(prevProjectDir)
+            if (matched) {
+              // Once a matching resolver is found, stop looking.
+              break loop
+            }
+          }
         }
+        prevProjectDir = projectDir
+        projectDir = dirname(prevProjectDir)
       }
     },
   }
@@ -231,7 +246,11 @@ export default (opts: PluginOptions = {}): Plugin => {
     ) => Promise<string | undefined>
 
     const resolveWithBaseUrl: InternalResolver | undefined = baseUrl
-      ? (viteResolve, id, importer) => viteResolve(join(baseUrl, id), importer)
+      ? (viteResolve, id, importer) => {
+          const absoluteId = join(baseUrl, id)
+          debugResolve('trying with baseUrl:', absoluteId)
+          return viteResolve(absoluteId, importer)
+        }
       : undefined
 
     let resolveId: InternalResolver
@@ -259,6 +278,7 @@ export default (opts: PluginOptions = {}): Plugin => {
               const matchIndex = Math.min(++starCount, match.length - 1)
               return match[matchIndex]
             })
+            debugResolve('found match, trying to resolve:', mappedId)
             const resolved = await viteResolve(mappedId, importer)
             if (resolved) {
               return resolved
@@ -301,23 +321,24 @@ export default (opts: PluginOptions = {}): Plugin => {
       : /\.[mc]?tsx?$/
 
     const resolutionCache = new Map<string, string>()
-    return async (viteResolve, id, importer) => {
-      // Skip virtual modules.
-      if (id.includes('\0')) {
-        return noMatch
-      }
 
+    return async (viteResolve, id, importer) => {
+      // Ideally, Vite would normalize the importer path for us.
       importer = normalizePath(importer)
+
+      // Remove query and hash parameters from the importer path.
       const importerFile = importer.replace(/[#?].+$/, '')
 
       // Ignore importers with unsupported extensions.
       if (!importerExtRE.test(importerFile)) {
+        debugResolve('importer has unsupported extension. skipping...')
         return noMatch
       }
 
       // Respect the include/exclude properties.
       const relativeImporterFile = relative(configDir, importerFile)
       if (!isIncludedRelative(relativeImporterFile)) {
+        debugResolve('importer is not included. skipping...')
         return noMatch
       }
 
@@ -328,21 +349,29 @@ export default (opts: PluginOptions = {}): Plugin => {
         id = id.slice(0, -suffix.length)
       }
 
-      let path = resolutionCache.get(id)
-      if (!path) {
-        path = await resolveId(viteResolve, id, importer)
-        if (!path) {
+      let resolvedId = resolutionCache.get(id)
+      if (!resolvedId) {
+        resolvedId = await resolveId(viteResolve, id, importer)
+        if (!resolvedId) {
           return noMatch
         }
-        resolutionCache.set(id, path)
-        debug(`resolved:`, {
-          id,
-          importer,
-          resolvedId: path,
-          configPath,
-        })
+        resolutionCache.set(id, resolvedId)
+        if (debugResolve.enabled) {
+          debugResolve('resolved without error:', {
+            id,
+            importer,
+            resolvedId,
+            configPath,
+          })
+        }
       }
-      return [path && suffix ? path + suffix : path, true]
+
+      // Restore the suffix if one was removed earlier.
+      if (suffix) {
+        resolvedId += suffix
+      }
+
+      return [resolvedId, true]
     }
   }
 }
