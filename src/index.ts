@@ -11,7 +11,8 @@ import { basename, dirname, isAbsolute, join, relative } from './path'
 import { PluginOptions } from './types'
 import { debug, debugResolve } from './debug'
 
-const noMatch = [undefined, false] as [undefined, false]
+const notApplicable = [undefined, false] as const
+const notFound = [undefined, true] as const
 
 type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
 
@@ -19,7 +20,7 @@ type Resolver = (
   viteResolve: ViteResolve,
   id: string,
   importer: string
-) => Promise<[resolved: string | undefined, matched: boolean]>
+) => Promise<readonly [resolved: string | undefined, matched: boolean]>
 
 export type { PluginOptions }
 
@@ -332,14 +333,14 @@ export default (opts: PluginOptions = {}): Plugin => {
       // Ignore importers with unsupported extensions.
       if (!importerExtRE.test(importerFile)) {
         debugResolve('importer has unsupported extension. skipping...')
-        return noMatch
+        return notApplicable
       }
 
       // Respect the include/exclude properties.
       const relativeImporterFile = relative(configDir, importerFile)
       if (!isIncludedRelative(relativeImporterFile)) {
         debugResolve('importer is not included. skipping...')
-        return noMatch
+        return notApplicable
       }
 
       // Find and remove Vite's suffix (e.g. "?url") if present.
@@ -353,7 +354,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       if (!resolvedId) {
         resolvedId = await resolveId(viteResolve, id, importer)
         if (!resolvedId) {
-          return noMatch
+          return notFound
         }
         resolutionCache.set(id, resolvedId)
         if (debugResolve.enabled) {
