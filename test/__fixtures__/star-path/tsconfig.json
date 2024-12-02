@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "rootDir": ".",
+    "paths": {
+      "*": ["./src/*"]
+    }
+  }
+}
