@@ -2,7 +2,11 @@ import _debug from 'debug'
 import * as fs from 'fs'
 import globRex from 'globrex'
 import { resolve } from 'path'
-import type { TSConfckParseOptions, TSConfckParseResult } from 'tsconfck'
+import type {
+  TSConfckParseNativeResult,
+  TSConfckParseOptions,
+  TSConfckParseResult,
+} from 'tsconfck'
 import type { CompilerOptions } from 'typescript'
 import { inspect } from 'util'
 import { normalizePath, Plugin, searchForWorkspaceRoot } from 'vite'
@@ -218,7 +222,14 @@ export default (opts: PluginOptions = {}): Plugin => {
     compilerOptions?: CompilerOptions
   }
 
-  function resolvePathsRootDir(project: TSConfckParseResult): string {
+  function resolvePathsRootDir(
+    project: TSConfckParseResult | TSConfckParseNativeResult
+  ): string {
+    if ('result' in project) {
+      return (
+        project.result.options?.pathsBasePath ?? dirname(project.tsconfigFile)
+      )
+    }
     const baseUrl = (project.tsconfig as TsConfig).compilerOptions?.baseUrl
     if (baseUrl) {
       return baseUrl
@@ -229,7 +240,9 @@ export default (opts: PluginOptions = {}): Plugin => {
     return dirname((projectWithPaths ?? project).tsconfigFile)
   }
 
-  function createResolver(project: TSConfckParseResult): Resolver | null {
+  function createResolver(
+    project: TSConfckParseResult | TSConfckParseNativeResult
+  ): Resolver | null {
     const configPath = normalizePath(project.tsconfigFile)
     const config = project.tsconfig as TsConfig
 
