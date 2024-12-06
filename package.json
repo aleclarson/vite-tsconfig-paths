@@ -36,7 +36,7 @@
     "prettier": "^2.8.7",
     "rollup": "^2.45.2",
     "tsup": "^6.5.0",
-    "typescript": "^5.6.3",
+    "typescript": "^5.7.2",
     "vite": "^6.0.2",
     "vite-tsconfig-paths": "link:.",
     "vitest": "^2.1.8"

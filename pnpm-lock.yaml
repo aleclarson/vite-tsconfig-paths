@@ -16,7 +16,7 @@ importers:
         version: 0.1.2
       tsconfck:
         specifier: ^3.0.3
-        version: 3.1.1(typescript@5.6.3)
+        version: 3.1.1(typescript@5.7.2)
     devDependencies:
       '@alloc/fast-rimraf':
         specifier: ^1.0.8
@@ -47,10 +47,10 @@ importers:
         version: 2.79.1
       tsup:
         specifier: ^6.5.0
-        version: 6.7.0(postcss@8.4.49)(typescript@5.6.3)
+        version: 6.7.0(postcss@8.4.49)(typescript@5.7.2)
       typescript:
-        specifier: ^5.6.3
-        version: 5.6.3
+        specifier: ^5.7.2
+        version: 5.7.2
       vite:
         specifier: ^6.0.2
         version: 6.0.2(@types/node@22.2.0)
@@ -1340,8 +1340,8 @@ packages:
       typescript:
         optional: true
 
-  typescript@5.6.3:
-    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+  typescript@5.7.2:
+    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -2487,11 +2487,11 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsconfck@3.1.1(typescript@5.6.3):
+  tsconfck@3.1.1(typescript@5.7.2):
     optionalDependencies:
-      typescript: 5.6.3
+      typescript: 5.7.2
 
-  tsup@6.7.0(postcss@8.4.49)(typescript@5.6.3):
+  tsup@6.7.0(postcss@8.4.49)(typescript@5.7.2):
     dependencies:
       bundle-require: 4.2.1(esbuild@0.17.19)
       cac: 6.7.14
@@ -2509,12 +2509,12 @@ snapshots:
       tree-kill: 1.2.2
     optionalDependencies:
       postcss: 8.4.49
-      typescript: 5.6.3
+      typescript: 5.7.2
     transitivePeerDependencies:
       - supports-color
       - ts-node
 
-  typescript@5.6.3: {}
+  typescript@5.7.2: {}
 
   undici-types@6.13.0: {}
 
