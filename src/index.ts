@@ -211,14 +211,27 @@ export default (opts: PluginOptions = {}): Plugin => {
     },
   }
 
+  type TsConfig = {
+    files?: string[]
+    include?: string[]
+    exclude?: string[]
+    compilerOptions?: CompilerOptions
+  }
+
+  function resolvePathsRootDir(project: TSConfckParseResult): string {
+    const baseUrl = (project.tsconfig as TsConfig).compilerOptions?.baseUrl
+    if (baseUrl) {
+      return baseUrl
+    }
+    const projectWithPaths = project.extended?.find(
+      (p) => (p.tsconfig as TsConfig).compilerOptions?.paths
+    )
+    return dirname((projectWithPaths ?? project).tsconfigFile)
+  }
+
   function createResolver(project: TSConfckParseResult): Resolver | null {
     const configPath = normalizePath(project.tsconfigFile)
-    const config = project.tsconfig as {
-      files?: string[]
-      include?: string[]
-      exclude?: string[]
-      compilerOptions?: CompilerOptions
-    }
+    const config = project.tsconfig as TsConfig
 
     debug('config loaded:', inspect({ configPath, config }, false, 10, true))
 
@@ -256,10 +269,9 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     let resolveId: InternalResolver
     if (paths) {
-      const pathMappings = resolvePathMappings(
-        paths,
-        baseUrl ?? dirname(configPath)
-      )
+      const pathsRootDir = resolvePathsRootDir(project)
+      const pathMappings = resolvePathMappings(paths, pathsRootDir)
+
       const resolveWithPaths: InternalResolver = async (
         viteResolve,
         id,
