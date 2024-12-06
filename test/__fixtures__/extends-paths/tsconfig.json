@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./my-app/*"]
+    }
+  },
+  "include": [],
+  "references": [{ "path": "./my-app/" }]
+}
