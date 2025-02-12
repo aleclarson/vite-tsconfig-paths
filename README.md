@@ -80,7 +80,8 @@ This is being tracked in [#17](https://github.com/aleclarson/vite-tsconfig-paths
 
 You pass these options when calling the plugin constructor in your Vite config.
 
-⚠️ You should try using the plugin without *any* of these options, and only set them when you know you need them.
+> [!WARNING]
+> You should try using the plugin without *any* of these options, and only set them when you know you need them.
 
 ```ts
 import { defineConfig } from 'vite'
@@ -91,37 +92,42 @@ export default defineConfig({
 })
 ```
 
-&nbsp;
+#### `root: string`
 
-- `root: string`  
-  The directory to search for `tsconfig.json` files.
+The directory to search for `tsconfig.json` files.
 
-  The default value of this option depends on whether `projects` is defined. If it is, then the [Vite project root](https://vitejs.dev/config/shared-options.html#root) is used. Otherwise, Vite's [`searchForWorkspaceRoot`](https://vitejs.dev/guide/api-javascript.html#searchforworkspaceroot) function is used.
+The default value of this option depends on whether `projects` is defined. If it is, then the [Vite project root](https://vitejs.dev/config/shared-options.html#root) is used. Otherwise, Vite's [`searchForWorkspaceRoot`](https://vitejs.dev/guide/api-javascript.html#searchforworkspaceroot) function is used.
 
-- `projects: string[]`  
-  If you have an esoteric setup, you _might_ need this option to specify where your tsconfig files are located. The paths within are relative to the `root` option.
+#### `projects: string[]`
 
-  If defined, the `root` directory won't be searched for tsconfig files. You should **always** try using just the `root` option first, because this option is more brittle.
+If you have an esoteric setup, you _might_ need this option to specify where your tsconfig files are located. The paths within are relative to the `root` option.
 
-- `loose: boolean`  
-  Disable strictness that limits path resolution to TypeScript and JavaScript importers.
+If defined, the `root` directory won't be searched for tsconfig files. You should **always** try using just the `root` option first, because this option is more brittle.
 
-  Useful if you want imports in Vue templates to be resolved, but don't want to use `allowJs` in your tsconfig, for example.
+#### `loose: boolean`
 
-  In other words, when `loose: true` is used, any file that gets transpiled into JavaScript will have its imports resolved by this plugin.
+Disable strictness that limits path resolution to TypeScript and JavaScript importers. In other words, when `loose: true` is used, any file that gets transpiled into JavaScript will have its imports resolved by this plugin.
 
-- `parseNative: boolean`  
-  Enable use of the [`tsconfck.parseNative`](https://github.com/dominikg/tsconfck/blob/main/docs/api.md#parsenative) function, which delegates the loading of tsconfig files to the TypeScript compiler. You'll probably never need this, but I added it just in case.
+For example, this is useful if you want imports in Vue templates to be resolved, but don't want to use `allowJs` in your tsconfig.
 
-  ⚠️ This option can slow down Vite's startup time by as much as
-  600ms, due to the size of the TypeScript compiler. Only use it when
-  necessary.
+#### `parseNative: boolean`
 
-- `ignoreConfigErrors: boolean`  
-  When true, parsing errors encountered while loading tsconfig files will be ignored. This is useful if you have a monorepo with multiple tsconfig files, and you don't want to see errors for the ones that aren't relevant to the current project.
+Enable use of the [`tsconfck.parseNative`](https://github.com/dominikg/tsconfck/blob/main/docs/api.md#parsenative) function, which delegates the loading of tsconfig files to the TypeScript compiler. You'll probably never need this, but I added it just in case.
 
-- `skip: (dir: string) => boolean`  
-  A function that determines which directories to skip when searching for tsconfig.json files. While `.git` and `node_modules` directories are always skipped, this option allows you to skip additional directories, which is useful in large monorepos to improve performance.
+> [!WARNING]
+> This option can slow down Vite's startup time by as much as 600ms, due to the size of the TypeScript compiler. Only use it when necessary.
+
+#### `ignoreConfigErrors: boolean`
+
+When true, parsing errors encountered while loading tsconfig files will be ignored.
+
+This is useful if you have a monorepo with multiple tsconfig files, and you don't want to see errors for the ones that aren't relevant to the current project.
+
+#### `skip: (dir: string) => boolean`
+
+A function that determines which directories to skip when searching for tsconfig.json files.
+
+While `.git` and `node_modules` directories are always skipped, this option allows you to skip additional directories, which is useful in large monorepos to improve performance.
 
 &nbsp;
 
