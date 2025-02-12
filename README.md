@@ -15,13 +15,25 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 [`vite`]: https://github.com/vitejs/vite
 
-## Usage
+## Install
 
-1. Install as dev dependency
+```sh
+pnpm add -D vite-tsconfig-paths
+```
 
-2. Ensure the project either has `"type": "module"` set or that the Vite config is renamed to `vite.config.mjs` / `vite.config.mts` depending on whether TypeScript is used
+```sh
+npm install --save-dev vite-tsconfig-paths
+```
 
-3. Inject `vite-tsconfig-paths` in the Vite config
+```sh
+yarn add -D vite-tsconfig-paths
+```
+
+## Setup
+
+1. Ensure the project either has `"type": "module"` set or that the Vite config is renamed to `vite.config.mjs` / `vite.config.mts` depending on whether TypeScript is used
+
+2. Inject `vite-tsconfig-paths` in the Vite config
 
    ```ts
    import { defineConfig } from 'vite'
@@ -32,11 +44,54 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
    })
    ```
 
-4. (optional) ⚠️ To enable path resolution in non-TypeScript modules (e.g. `.vue`, `.svelte`, `.mdx`), you must set the `allowJs` option to true in your `tsconfig.json` file. If that doesn't work, you might need to enable `loose: true` to resolve all files. Note that, due to a Vite limitation, CSS files (and CSS dialects) cannot be resolved with this plugin (see [#30](https://github.com/aleclarson/vite-tsconfig-paths/issues/30)).
+### ⚠️ CSS imports are not supported.
 
-**Note:** You need to restart Vite when you update your `paths` mappings. This is being tracked in [#17](https://github.com/aleclarson/vite-tsconfig-paths/issues/17) (contributions welcome).
+Due to a Vite limitation, CSS files (and CSS dialects) cannot be resolved with this plugin.
 
-### Options
+This is being tracked in [#30](https://github.com/aleclarson/vite-tsconfig-paths/issues/30).
+
+### ⚠️ Non-TypeScript modules need special configuration.
+
+To enable path resolution in non-TypeScript modules (e.g. `.vue`, `.svelte`, `.mdx`), you must set the `allowJs` option to true in your `tsconfig.json` file.
+
+```json
+{
+  "compilerOptions": {
+    "allowJs": true
+  }
+}
+```
+
+**Alternative:** If you prefer to avoid `allowJs` or it didn't help, passing `loose: true` to the plugin constructor should work.
+
+```ts
+tsconfigPaths({ loose: true })
+```
+
+### ⚠️ TSConfigs are not watched.
+
+You should restart Vite when you make changes to a tsconfig file; particularly these settings: `include`, `exclude`, `compilerOptions.paths`, and `compilerOptions.baseUrl`.
+
+This is being tracked in [#17](https://github.com/aleclarson/vite-tsconfig-paths/issues/17) (contributions welcome).
+
+&nbsp;
+
+## Plugin Options
+
+You pass these options when calling the plugin constructor in your Vite config.
+
+⚠️ You should try using the plugin without *any* of these options, and only set them when you know you need them.
+
+```ts
+import { defineConfig } from 'vite'
+import tsconfigPaths from 'vite-tsconfig-paths'
+
+export default defineConfig({
+  plugins: [tsconfigPaths({ /* options go here */ })],
+})
+```
+
+&nbsp;
 
 - `root: string`  
   The directory to search for `tsconfig.json` files.
@@ -70,9 +125,13 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 &nbsp;
 
+## TSConfig Options
+
 ### allowJs
 
 If your tsconfig file has `"allowJs": true` in it, path resolution will be expanded beyond TypeScript importers. The following extensions will have their imports resolved by this plugin: `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
+
+If you believe another file extension should be supported by default, please open an issue or pull request.
 
 &nbsp;
 
@@ -92,7 +151,7 @@ Internally, [globrex](https://github.com/terkelg/globrex) is used for glob match
 
 &nbsp;
 
-### Troubleshooting
+## Troubleshooting
 
 The `DEBUG` environment variable can be used to figure out why this plugin isn't working as you may have expected.
 
