@@ -90,11 +90,11 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
-      let firstError: any
-
       const parseOptions: TSConfckParseOptions = {
         cache: new tsconfck.TSConfckCache(),
       }
+
+      let isFirstError = true
 
       const parsedProjects = new Set(
         await Promise.all(
@@ -109,22 +109,27 @@ export default (opts: PluginOptions = {}): Plugin => {
                 : tsconfck.parse(tsconfigFile, parseOptions)
             ).catch((error) => {
               if (opts.ignoreConfigErrors) {
-                debug('tsconfig file caused a parsing error:', tsconfigFile)
+                debug('Failed to parse tsconfig file at %s', tsconfigFile)
+                if (isFirstError) {
+                  debug(
+                    'Remove the `ignoreConfigErrors` option to see the error.'
+                  )
+                }
               } else {
                 config.logger.error(
                   '[tsconfig-paths] An error occurred while parsing "' +
                     tsconfigFile +
                     '". See below for details.' +
-                    (firstError
-                      ? ''
-                      : ' To disable this message, set the `ignoreConfigErrors` option to true.'),
+                    (isFirstError
+                      ? ' To disable this message, set the `ignoreConfigErrors` option to true.'
+                      : ''),
                   { error }
                 )
-                if (config.logger.hasErrorLogged(error)) {
+                if (!config.logger.hasErrorLogged(error)) {
                   console.error(error)
                 }
-                firstError = error
               }
+              isFirstError = false
               return null
             })
           })
