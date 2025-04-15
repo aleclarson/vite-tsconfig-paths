@@ -8,24 +8,24 @@ export interface PluginOptions {
    * @default
    * // The config root is used for resolving project paths, and the
    * // workspace root is used for crawling.
-   * options.projects ? viteConfig.root :
-   * vite.searchForWorkspaceRoot(viteConfig.root)
+   * options.projects ? viteConfig.root : vite.searchForWorkspaceRoot(viteConfig.root)
    */
   root?: string
   /**
    * An array of `.json` files and/or directories that contain a
    * `tsconfig.json` file. These JSON files must adhere to the
-   * {@link https://www.typescriptlang.org/tsconfig TypeScript config interface}. The `extends` property is supported.
+   * {@link https://www.typescriptlang.org/tsconfig TypeScript config interface}.
+   * The `extends` property is supported.
    *
    * This disables crawling for `tsconfig.json` files when defined.
    */
   projects?: string[]
   /**
-   * Disable strictness that limits path resolution to TypeScript
-   * and JavaScript modules.
+   * Disable strictness that limits path resolution to TypeScript and
+   * JavaScript modules.
    *
-   * Useful if you want asset URLs in Vue templates to be resolved,
-   * or when `"allowJs": true` in your tsconfig isn't good enough.
+   * Useful if you want asset URLs in Vue templates to be resolved, or when
+   * `"allowJs": true` in your tsconfig isn't good enough.
    */
   loose?: boolean
   /**
@@ -33,8 +33,8 @@ export interface PluginOptions {
    * loading of `tsconfig.json` files to the TypeScript compiler. You'll
    * probably never need this, but I added it just in case.
    *
-   * ⚠️ This option can slow down Vite's startup time by as much as
-   * 600ms, due to the size of the TypeScript compiler. Only use it when
+   * ⚠️ This option can slow down Vite's startup time by as much as 600ms,
+   * due to the size of the TypeScript compiler. Only use it when
    * necessary.
    */
   parseNative?: boolean
@@ -44,13 +44,16 @@ export interface PluginOptions {
   ignoreConfigErrors?: boolean
   /**
    * An array of `tsconfig.json` file names to search for.
+   *
    * @default ["tsconfig.json", "jsconfig.json"]
    */
   configNames?: string[]
   /**
-   * A function that determines which directories to skip when searching for tsconfig.json files.
-   * While `.git` and `node_modules` directories are always skipped, this option allows you to skip
-   * additional directories, which is useful in large monorepos to improve performance.
+   * A function that determines which directories to skip when searching
+   * for tsconfig.json files. While `.git` and `node_modules` directories
+   * are always skipped, this option allows you to skip additional
+   * directories, which is useful in large monorepos to improve
+   * performance.
    */
   skip?: (dir: string) => boolean
 }

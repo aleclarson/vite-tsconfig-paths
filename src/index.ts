@@ -143,8 +143,8 @@ export default (opts: PluginOptions = {}): Plugin => {
             parsedProjects.add(projectRef)
           })
           // Reinsert the parent project so it's tried last. This is
-          // important because project references can be used to
-          // override the parent project.
+          // important because project references can be used to override
+          // the parent project.
           parsedProjects.delete(project)
           parsedProjects.add(project)
           project.referenced = undefined
@@ -243,9 +243,9 @@ export default (opts: PluginOptions = {}): Plugin => {
     debug('config loaded:', inspect({ configPath, config }, false, 10, true))
 
     // Sometimes a tsconfig is not meant to be used for path resolution,
-    // but rather for pointing to other tsconfig files and possibly
-    // being extended by them. This is represented by an explicitly
-    // empty "files" array and a missing/empty "include" array.
+    // but rather for pointing to other tsconfig files and possibly being
+    // extended by them. This is represented by an explicitly empty "files"
+    // array and a missing/empty "include" array.
     if (config.files?.length == 0 && !config.include?.length) {
       debug(
         `[!] skipping "${configPath}" as no files can be matched since "files" is empty and "include" is missing or empty`
@@ -293,8 +293,8 @@ export default (opts: PluginOptions = {}): Plugin => {
             let starCount = 0
             const mappedId = pathTemplate.replace(/\*/g, () => {
               // There may exist more globs in the path template than in
-              // the match pattern. In that case, we reuse the final
-              // glob match.
+              // the match pattern. In that case, we reuse the final glob
+              // match.
               const matchIndex = Math.min(++starCount, match.length - 1)
               return match[matchIndex]
             })
@@ -321,8 +321,8 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     const configDir = dirname(configPath)
 
-    // When `tsconfck.parseNative` is used, the outDir is absolute,
-    // which is not what `getIncluder` expects.
+    // When `tsconfck.parseNative` is used, the outDir is absolute, which
+    // is not what `getIncluder` expects.
     let { outDir } = options
     if (outDir && isAbsolute(outDir)) {
       outDir = relative(configDir, outDir)
@@ -445,6 +445,7 @@ function addCompiledGlob(this: RegExp[], glob: string) {
   } else {
     // Append a globstar to possible directories.
     this.push(compileGlob(relativeGlob + '/**'))
+
     // Try to match specific files (must have file extension).
     if (/\.\w+$/.test(glob)) {
       this.push(compileGlob(relativeGlob))

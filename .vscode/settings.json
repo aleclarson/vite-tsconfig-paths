@@ -1,4 +1,5 @@
 {
+  "rewrap.wrappingColumn": 75,
   "[typescript]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
