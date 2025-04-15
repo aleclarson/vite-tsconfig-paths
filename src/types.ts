@@ -54,6 +54,8 @@ export interface PluginOptions {
    * are always skipped, this option allows you to skip additional
    * directories, which is useful in large monorepos to improve
    * performance.
+   *
+   * **Note:** This is not used when the `projects` option is set.
    */
   skip?: (dir: string) => boolean
 }
