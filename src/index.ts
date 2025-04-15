@@ -35,24 +35,18 @@ export default (opts: PluginOptions = {}): Plugin => {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
     async configResolved(config) {
-      let projectRoot = config.root
-      let workspaceRoot!: string
+      let projectRoot: string
+      let workspaceRoot: string
 
       let { root } = opts
       if (root) {
-        root = resolve(projectRoot, root)
+        root = projectRoot = workspaceRoot = resolve(config.root, root)
+        debug('Forced root:', root)
       } else {
-        workspaceRoot = searchForWorkspaceRoot(projectRoot)
-      }
-
-      debug('options.root   ==', root)
-      debug('project root   ==', projectRoot)
-      debug('workspace root ==', workspaceRoot)
-
-      // The "root" option overrides both of these.
-      if (root) {
-        projectRoot = root
-        workspaceRoot = root
+        projectRoot = config.root
+        workspaceRoot = searchForWorkspaceRoot(config.root)
+        debug('Project root:  ', projectRoot)
+        debug('Workspace root:', workspaceRoot)
       }
 
       const tsconfck = await import('tsconfck')
