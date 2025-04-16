@@ -62,6 +62,80 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       )
     : null
 
+  type ResolveContext = {
+    resolve: (
+      source: string,
+      importer?: string,
+      options?: {
+        attributes?: Record<string, string>
+        custom?: vite.Rollup.CustomPluginOptions
+        isEntry?: boolean
+        skipSelf?: boolean
+      }
+    ) => Promise<vite.Rollup.ResolvedId | null>
+  }
+
+  // This hook is hoisted so it can be used by the patched
+  // `config.createResolver` function.
+  const resolveId = async function (
+    this: ResolveContext,
+    id,
+    importer,
+    options
+  ) {
+    if (!importer) {
+      logFile?.write('emptyImporter', { importer, id })
+      return
+    }
+    if (relativeImportRE.test(id)) {
+      logFile?.write('relativeId', { importer, id })
+      return
+    }
+    if (id.includes('\0')) {
+      logFile?.write('virtualId', { importer, id })
+      return
+    }
+
+    // Attempt to coerce the importer to a file path. The importer may be
+    // a "virtual module" that may not exist in the filesystem, or it may
+    // be derived from a real file.
+    let importerFile = importer
+    if (importer[0] === '\0') {
+      // Check if the real file path is provided in the query string. For
+      // example, the WXT framework for browser extensions does this.
+      const index = importer.indexOf('?')
+      if (index !== -1) {
+        const query = path.normalize(importer.slice(index + 1))
+        if (path.isAbsolute(query) && fs.existsSync(query)) {
+          debug('Rewriting virtual importer to real file:', importer)
+          importerFile = query
+        } else {
+          logFile?.write('virtualImporter', { importer, id })
+          return
+        }
+      } else {
+        logFile?.write('virtualImporter', { importer, id })
+        return
+      }
+    }
+
+    // For Vite 4 and under, skipSelf needs to be set.
+    const resolveOptions = { ...options, skipSelf: true }
+    const viteResolve: ViteResolve = async (id, importer) =>
+      (await this.resolve(id, importer, resolveOptions))?.id
+
+    for await (const resolveId of getResolvers(importerFile)) {
+      const [resolved, matched] = await resolveId(viteResolve, id, importerFile)
+      if (resolved) {
+        return resolved
+      }
+      if (matched) {
+        // Once a matching resolver is found, stop looking.
+        break
+      }
+    }
+  } satisfies vite.Plugin['resolveId']
+
   return {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
@@ -93,6 +167,35 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
           if (e.code != 'ENOENT') {
             throw e
           }
+        }
+      }
+
+      const mutableConfig = config as {
+        -readonly [K in keyof vite.ResolvedConfig]: vite.ResolvedConfig[K]
+      }
+
+      const { createResolver } = config
+      mutableConfig.createResolver = function (...args1) {
+        const resolve = createResolver.apply(config, args1)
+
+        return async function (id, importer, ...rest) {
+          const resolved = await resolve(id, importer, ...rest)
+          if (resolved) {
+            return resolved
+          }
+
+          // Fast path so we don't run this extensive logic in pre-bundling.
+          if (importer?.includes('node_modules')) {
+            return
+          }
+
+          // @ts-expect-error resolveId exists
+          return resolveId.call({ resolve }, id, importer, {
+            attributes: {},
+            //
+            ssr: typeof rest[1] === 'boolean' ? rest[1] : (rest[0] as any).ssr,
+          })
+          if (resolved) return resolved
         }
       }
     },
@@ -363,63 +466,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         }
       })
     },
-    async resolveId(id, importer, options) {
-      if (!importer) {
-        logFile?.write('emptyImporter', { importer, id })
-        return
-      }
-      if (relativeImportRE.test(id)) {
-        logFile?.write('relativeId', { importer, id })
-        return
-      }
-      if (id.includes('\0')) {
-        logFile?.write('virtualId', { importer, id })
-        return
-      }
-
-      // Attempt to coerce the importer to a file path. The importer may be
-      // a "virtual module" that may not exist in the filesystem, or it may
-      // be derived from a real file.
-      let importerFile = importer
-      if (importer[0] === '\0') {
-        // Check if the real file path is provided in the query string. For
-        // example, the WXT framework for browser extensions does this.
-        const index = importer.indexOf('?')
-        if (index !== -1) {
-          const query = path.normalize(importer.slice(index + 1))
-          if (path.isAbsolute(query) && fs.existsSync(query)) {
-            debug('Rewriting virtual importer to real file:', importer)
-            importerFile = query
-          } else {
-            logFile?.write('virtualImporter', { importer, id })
-            return
-          }
-        } else {
-          logFile?.write('virtualImporter', { importer, id })
-          return
-        }
-      }
-
-      // For Vite 4 and under, skipSelf needs to be set.
-      const resolveOptions = { ...options, skipSelf: true }
-      const viteResolve: ViteResolve = async (id, importer) =>
-        (await this.resolve(id, importer, resolveOptions))?.id
-
-      for await (const resolveId of getResolvers(importerFile)) {
-        const [resolved, matched] = await resolveId(
-          viteResolve,
-          id,
-          importerFile
-        )
-        if (resolved) {
-          return resolved
-        }
-        if (matched) {
-          // Once a matching resolver is found, stop looking.
-          break
-        }
-      }
-    },
+    resolveId,
   }
 
   function resolvePathsRootDir(project: Project): string {
