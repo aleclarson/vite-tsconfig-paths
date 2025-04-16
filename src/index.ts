@@ -37,7 +37,7 @@ export default (opts: PluginOptions = {}): Plugin => {
   let getResolvers: (importer: string) => AsyncIterable<Resolver>
   let viteDevServer: ViteDevServer | undefined
 
-  const directoryCache: Partial<Record<string, Directory>> = {}
+  const directoryCache = new Map<string, Directory>()
   const resolversByProject = new WeakMap<Project, Resolver>()
   const watchedProjectPaths = new Set<string>()
 
@@ -148,12 +148,15 @@ export default (opts: PluginOptions = {}): Plugin => {
 
         if (!data) {
           const dir = path.dirname(project.tsconfigFile)
-          data = directoryCache[dir]
+          data = directoryCache.get(dir)
           if (!data || data === emptyDirectory) {
-            data = directoryCache[dir] = {
-              projects: [],
-              lazyDiscovery: null,
-            }
+            directoryCache.set(
+              dir,
+              (data = {
+                projects: [],
+                lazyDiscovery: null,
+              })
+            )
           }
         }
 
@@ -164,7 +167,7 @@ export default (opts: PluginOptions = {}): Plugin => {
         if (!configNames.includes(name)) {
           return
         }
-        const data = directoryCache[dir]
+        const data = directoryCache.get(dir)
         if (!data) {
           return // Wait to be loaded on-demand.
         }
@@ -172,17 +175,11 @@ export default (opts: PluginOptions = {}): Plugin => {
         if (data.projects.some((p) => p.tsconfigFile === tsconfigFile)) {
           return
         }
-        const project = await parseProject(tsconfigFile)
-        if (project) {
-          addProject(project, data)
-        } else {
-          // Try again if the file changes.
-          watchProjectPath(tsconfigFile)
-        }
+        await loadProject(tsconfigFile, data)
       }
 
       invalidateConfigFile = (dir, name, event) => {
-        const data = directoryCache[dir]
+        const data = directoryCache.get(dir)
         if (!data) {
           return
         }
@@ -245,7 +242,7 @@ export default (opts: PluginOptions = {}): Plugin => {
           )
         } else {
           // No projects found. Reduce memory usage with a stand-in.
-          directoryCache[dir] = emptyDirectory
+          directoryCache.set(dir, emptyDirectory)
         }
       }
 
@@ -255,18 +252,21 @@ export default (opts: PluginOptions = {}): Plugin => {
         const { root } = path.parse(dir)
 
         while (dir !== (dir = path.dirname(dir)) && dir !== root) {
-          let data = directoryCache[dir]
+          let data = directoryCache.get(dir)
 
           if (opts.projectDiscovery === 'lazy') {
             if (!data) {
               if (shouldSkipDir(path.basename(dir))) {
-                directoryCache[dir] = emptyDirectory
+                directoryCache.set(dir, emptyDirectory)
                 continue
               }
-              data = directoryCache[dir] = {
-                projects: [],
-                lazyDiscovery: null,
-              }
+              directoryCache.set(
+                dir,
+                (data = {
+                  projects: [],
+                  lazyDiscovery: null,
+                })
+              )
             }
             await (data.lazyDiscovery ??= discoverProjects(dir, data))
           } else if (!data) {
