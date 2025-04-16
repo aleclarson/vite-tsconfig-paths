@@ -372,10 +372,6 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         logFile?.write('relativeId', { importer, id })
         return
       }
-      if (path.isAbsolute(id)) {
-        logFile?.write('absoluteId', { importer, id })
-        return
-      }
       if (id.includes('\0')) {
         logFile?.write('virtualId', { importer, id })
         return
@@ -472,6 +468,10 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
 
     const resolveWithBaseUrl: InternalResolver | undefined = baseUrl
       ? async (viteResolve, id, importer) => {
+          if (id[0] === '/') {
+            return
+          }
+
           const absoluteId = join(baseUrl, id)
           debug('Trying with baseUrl:', absoluteId)
 

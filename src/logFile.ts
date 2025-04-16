@@ -11,7 +11,6 @@ export type LogEvent =
   | ['virtualImporter', ImportDetails]
   | ['unsupportedExtension', ImportDetails]
   | ['relativeId', ImportDetails]
-  | ['absoluteId', ImportDetails]
   | ['virtualId', ImportDetails]
   | ['resolvedWithBaseUrl', ResolveDetails]
   | ['resolvedWithPaths', ResolveDetails]
