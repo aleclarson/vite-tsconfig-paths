@@ -1,77 +1,61 @@
-import _debug from 'debug'
 import * as fs from 'fs'
+import { readdir } from 'fs/promises'
 import globRex from 'globrex'
-import { resolve } from 'path'
-import type {
-  TSConfckParseNativeResult,
-  TSConfckParseOptions,
-  TSConfckParseResult,
-} from 'tsconfck'
-import type { CompilerOptions } from 'typescript'
+import { isAbsolute, join, relative } from 'path'
 import { inspect } from 'util'
-import { normalizePath, Plugin, searchForWorkspaceRoot } from 'vite'
-import { resolvePathMappings } from './mappings'
-import { basename, dirname, isAbsolute, join, relative } from './path'
-import { PluginOptions } from './types'
+import { Plugin, searchForWorkspaceRoot } from 'vite'
 import { debug, debugResolve } from './debug'
+import { resolvePathMappings } from './mappings'
+import type { NormalizedPath } from './path'
+import * as path from './path'
+import {
+  Directory,
+  PluginOptions,
+  Project,
+  Resolver,
+  ViteResolve,
+} from './types'
 
 const notApplicable = [undefined, false] as const
 const notFound = [undefined, true] as const
 
-type ViteResolve = (id: string, importer: string) => Promise<string | undefined>
-
-type Resolver = (
-  viteResolve: ViteResolve,
-  id: string,
-  importer: string
-) => Promise<readonly [resolved: string | undefined, matched: boolean]>
+/** A directory with no projects. */
+const emptyDirectory: Directory = {
+  projects: Object.freeze([]) as any,
+  lazyDiscovery: false,
+}
 
 export type { PluginOptions }
 
 export default (opts: PluginOptions = {}): Plugin => {
-  let resolversByDir: Record<string, Resolver[]>
+  let processConfigFile: (dir: NormalizedPath, name: string) => Promise<void>
+  let invalidateConfigFile: (
+    dir: NormalizedPath,
+    name: string,
+    event: 'change' | 'unlink'
+  ) => void
+  let getResolvers: (importer: string) => AsyncIterable<Resolver>
+
+  const directoryCache: Partial<Record<string, Directory>> = {}
+  const resolversByProject = new WeakMap<Project, Resolver>()
 
   return {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
     async configResolved(config) {
-      let projectRoot: string
-      let workspaceRoot: string
+      let projectRoot: NormalizedPath
+      let workspaceRoot: NormalizedPath
 
       let { root } = opts
       if (root) {
-        root = projectRoot = workspaceRoot = resolve(config.root, root)
+        root = projectRoot = workspaceRoot = path.resolve(config.root, root)
         debug('Forced root:', root)
       } else {
-        projectRoot = config.root
-        workspaceRoot = searchForWorkspaceRoot(config.root)
+        projectRoot = path.normalize(config.root)
+        workspaceRoot = path.normalize(searchForWorkspaceRoot(config.root))
         debug('Project root:  ', projectRoot)
         debug('Workspace root:', workspaceRoot)
       }
-
-      const tsconfck = await import('tsconfck')
-
-      const projects = opts.projects
-        ? opts.projects.map((file) => {
-            if (!file.endsWith('.json')) {
-              file = join(file, 'tsconfig.json')
-            }
-            return resolve(projectRoot, file)
-          })
-        : await tsconfck.findAll(workspaceRoot, {
-            configNames: opts.configNames || ['tsconfig.json', 'jsconfig.json'],
-            skip(dir) {
-              if (dir === '.git' || dir === 'node_modules') {
-                return true
-              }
-              if (typeof opts.skip === 'function') {
-                return opts.skip(dir)
-              }
-              return false
-            },
-          })
-
-      debug('projects:', projects)
 
       let hasTypeScriptDep = false
       if (opts.parseNative) {
@@ -90,78 +74,209 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
-      const parseOptions: TSConfckParseOptions = {
-        cache: new tsconfck.TSConfckCache(),
+      // tsconfck is ESM only, so import(…) is needed for CommonJS support.
+      const tsconfck = await import('tsconfck')
+
+      const configNames = opts.configNames || ['tsconfig.json', 'jsconfig.json']
+
+      let isFirstParseError = true
+
+      const parseProject = (tsconfigFile: string): Promise<Project | null> => {
+        tsconfigFile = path.normalize(tsconfigFile)
+
+        const projectPromise = (
+          hasTypeScriptDep
+            ? tsconfck.parseNative(tsconfigFile)
+            : tsconfck.parse(tsconfigFile)
+        ) as Promise<Project>
+
+        return projectPromise.catch((error) => {
+          if (opts.ignoreConfigErrors) {
+            debug('Failed to parse tsconfig file at %s', tsconfigFile)
+            if (isFirstParseError) {
+              debug('Remove the `ignoreConfigErrors` option to see the error.')
+            }
+          } else {
+            config.logger.error(
+              '[tsconfig-paths] An error occurred while parsing "' +
+                tsconfigFile +
+                '". See below for details.' +
+                (isFirstParseError
+                  ? ' To disable this message, set the `ignoreConfigErrors` option to true.'
+                  : ''),
+              { error }
+            )
+            if (!config.logger.hasErrorLogged(error)) {
+              console.error(error)
+            }
+          }
+          isFirstParseError = false
+          return null
+        })
       }
 
-      let isFirstError = true
+      const addProject = (project: Project, data?: Directory) => {
+        // Referenced projects must be added first, so they can override
+        // the parent project's paths if both are in the same directory.
+        project.referenced?.forEach((projectRef) => {
+          addProject(projectRef)
+        })
 
-      const parsedProjects = new Set(
-        await Promise.all(
-          projects.map((tsconfigFile) => {
-            if (tsconfigFile === null) {
-              debug('tsconfig file not found:', tsconfigFile)
-              return null
-            }
-            return (
-              hasTypeScriptDep
-                ? tsconfck.parseNative(tsconfigFile, parseOptions)
-                : tsconfck.parse(tsconfigFile, parseOptions)
-            ).catch((error) => {
-              if (opts.ignoreConfigErrors) {
-                debug('Failed to parse tsconfig file at %s', tsconfigFile)
-                if (isFirstError) {
-                  debug(
-                    'Remove the `ignoreConfigErrors` option to see the error.'
-                  )
-                }
-              } else {
-                config.logger.error(
-                  '[tsconfig-paths] An error occurred while parsing "' +
-                    tsconfigFile +
-                    '". See below for details.' +
-                    (isFirstError
-                      ? ' To disable this message, set the `ignoreConfigErrors` option to true.'
-                      : ''),
-                  { error }
-                )
-                if (!config.logger.hasErrorLogged(error)) {
-                  console.error(error)
-                }
-              }
-              isFirstError = false
-              return null
-            })
-          })
-        )
-      )
-
-      resolversByDir = {}
-      parsedProjects.forEach((project) => {
-        if (!project) {
-          return
+        const resolver = createResolver(project)
+        if (resolver) {
+          resolversByProject.set(project, resolver)
         }
-        // Don't create a resolver for projects with a references array.
-        // Instead, create a resolver for each project in that array.
-        if (project.referenced) {
-          project.referenced.forEach((projectRef) => {
-            parsedProjects.add(projectRef)
-          })
-          // Reinsert the parent project so it's tried last. This is
-          // important because project references can be used to override
-          // the parent project.
-          parsedProjects.delete(project)
-          parsedProjects.add(project)
-          project.referenced = undefined
-        } else {
-          const resolver = createResolver(project)
-          if (resolver) {
-            const projectDir = normalizePath(dirname(project.tsconfigFile))
-            const resolvers = (resolversByDir[projectDir] ||= [])
-            resolvers.push(resolver)
+
+        if (!data) {
+          const dir = path.dirname(project.tsconfigFile)
+          data = directoryCache[dir] ||= {
+            projects: [],
+            lazyDiscovery: null,
           }
         }
-      })
+        data.projects.push(project)
+      }
+
+      const shouldSkipDir = (dir: string) => {
+        if (dir === '.git' || dir === 'node_modules') {
+          return true
+        }
+        if (typeof opts.skip === 'function') {
+          return opts.skip(dir)
+        }
+        return false
+      }
+
+      // Only used when projectDiscovery is 'lazy'. The logic for eager
+      // discovery is after the `invalidateConfigFile` implementation.
+      const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
+        const names = await readdir(dir)
+        await Promise.all(names.map((name) => processConfigFile(dir, name)))
+
+        if (data.projects.length) {
+          // Ensure a deterministic order.
+          data.projects.sort((left, right) =>
+            left.tsconfigFile.localeCompare(right.tsconfigFile)
+          )
+        } else {
+          // No projects found. Reduce memory usage with a stand-in.
+          directoryCache[dir] = emptyDirectory
+        }
+      }
+
+      processConfigFile = async (dir, name) => {
+        if (!configNames.includes(name)) {
+          return
+        }
+        const data = directoryCache[dir]
+        if (!data) {
+          return // Wait to be loaded on-demand.
+        }
+        const tsconfigFile = path.join(dir, name as NormalizedPath)
+        if (data.projects.some((p) => p.tsconfigFile === tsconfigFile)) {
+          return
+        }
+        const project = await parseProject(tsconfigFile)
+        if (project) {
+          addProject(project, data)
+        }
+      }
+
+      invalidateConfigFile = (dir, name, event) => {
+        const data = directoryCache[dir]
+        if (!data) {
+          return
+        }
+        const file = path.join(dir, name as NormalizedPath)
+        const index = data.projects.findIndex(
+          (project) => project.tsconfigFile === file
+        )
+        if (index !== -1) {
+          data.projects.splice(index, 1)
+          if (event === 'change') {
+            data.lazyDiscovery = null
+          }
+        }
+      }
+
+      if (opts.projects || opts.projectDiscovery !== 'lazy') {
+        const projectPaths =
+          opts.projects?.map((file) => {
+            if (!file.endsWith('.json')) {
+              file = join(file, 'tsconfig.json')
+            }
+            return path.resolve(projectRoot, file)
+          }) ??
+          (await tsconfck.findAll(workspaceRoot, {
+            configNames,
+            skip: shouldSkipDir,
+          }))
+
+        debug('Eagerly parsing these projects:', projectPaths)
+
+        for (const project of new Set(
+          await Promise.all(projectPaths.map(parseProject))
+        )) {
+          if (project) {
+            addProject(project)
+          }
+        }
+      }
+
+      getResolvers = async function* (importer) {
+        let dir = path.normalize(importer)
+
+        const { root } = path.parse(dir)
+
+        while (dir !== (dir = path.dirname(dir)) && dir !== root) {
+          let data = directoryCache[dir]
+
+          if (opts.projectDiscovery === 'lazy') {
+            if (!data) {
+              if (shouldSkipDir(path.basename(dir))) {
+                directoryCache[dir] = emptyDirectory
+                continue
+              }
+              data = directoryCache[dir] = {
+                projects: [],
+                lazyDiscovery: null,
+              }
+            }
+            await (data.lazyDiscovery ??= discoverProjects(dir, data))
+          } else if (!data) {
+            continue
+          }
+
+          for (const project of data.projects) {
+            const resolver = resolversByProject.get(project)
+            if (resolver) {
+              yield resolver
+            }
+          }
+        }
+      }
+    },
+    configureServer(server) {
+      if (opts.projectDiscovery === 'lazy') {
+        server.watcher.on('all', (event, file) => {
+          const normalizedFile = path.normalize(file)
+          if (!path.isAbsolute(normalizedFile)) {
+            return
+          }
+          if (event === 'add') {
+            processConfigFile(
+              path.dirname(normalizedFile),
+              path.basename(normalizedFile)
+            )
+          } else if (event === 'change' || event === 'unlink') {
+            invalidateConfigFile(
+              path.dirname(normalizedFile),
+              path.basename(normalizedFile),
+              event
+            )
+          }
+        })
+      }
     },
     async resolveId(id, importer, options) {
       if (debugResolve.enabled) {
@@ -176,7 +291,7 @@ export default (opts: PluginOptions = {}): Plugin => {
         debugResolve('id is a relative import. skipping...')
         return
       }
-      if (isAbsolute(id)) {
+      if (path.isAbsolute(id)) {
         debugResolve('id is an absolute path. skipping...')
         return
       }
@@ -190,60 +305,40 @@ export default (opts: PluginOptions = {}): Plugin => {
       const viteResolve: ViteResolve = async (id, importer) =>
         (await this.resolve(id, importer, resolveOptions))?.id
 
-      let prevProjectDir: string | undefined
-      let projectDir = normalizePath(dirname(importer))
-
-      // Find the nearest directory with a matching tsconfig file.
-      loop: while (projectDir && projectDir != prevProjectDir) {
-        const resolvers = resolversByDir[projectDir]
-        if (resolvers) {
-          for (const resolve of resolvers) {
-            const [resolved, matched] = await resolve(viteResolve, id, importer)
-            if (resolved) {
-              return resolved
-            }
-            if (matched) {
-              // Once a matching resolver is found, stop looking.
-              break loop
-            }
-          }
+      for await (const resolveId of getResolvers(importer)) {
+        const [resolved, matched] = await resolveId(viteResolve, id, importer)
+        if (resolved) {
+          return resolved
         }
-        prevProjectDir = projectDir
-        projectDir = dirname(prevProjectDir)
+        if (matched) {
+          // Once a matching resolver is found, stop looking.
+          break
+        }
       }
     },
   }
 
-  type TsConfig = {
-    files?: string[]
-    include?: string[]
-    exclude?: string[]
-    compilerOptions?: CompilerOptions
-  }
-
-  function resolvePathsRootDir(
-    project: TSConfckParseResult | TSConfckParseNativeResult
-  ): string {
-    if ('result' in project) {
-      return (
-        project.result.options?.pathsBasePath ?? dirname(project.tsconfigFile)
-      )
+  function resolvePathsRootDir(project: Project): string {
+    if (project.result) {
+      const { options } = project.result
+      if (options && typeof options.pathsBasePath === 'string') {
+        return options.pathsBasePath
+      }
+      return path.dirname(project.tsconfigFile)
     }
-    const baseUrl = (project.tsconfig as TsConfig).compilerOptions?.baseUrl
+    const baseUrl = project.tsconfig.compilerOptions?.baseUrl
     if (baseUrl) {
       return baseUrl
     }
     const projectWithPaths = project.extended?.find(
-      (p) => (p.tsconfig as TsConfig).compilerOptions?.paths
+      (project) => project.tsconfig.compilerOptions?.paths
     )
-    return dirname((projectWithPaths ?? project).tsconfigFile)
+    return path.dirname((projectWithPaths ?? project).tsconfigFile)
   }
 
-  function createResolver(
-    project: TSConfckParseResult | TSConfckParseNativeResult
-  ): Resolver | null {
-    const configPath = normalizePath(project.tsconfigFile)
-    const config = project.tsconfig as TsConfig
+  function createResolver(project: Project): Resolver | null {
+    const configPath = project.tsconfigFile
+    const config = project.tsconfig
 
     debug('config loaded:', inspect({ configPath, config }, false, 10, true))
 
@@ -258,8 +353,8 @@ export default (opts: PluginOptions = {}): Plugin => {
       return null
     }
 
-    const options = config.compilerOptions || {}
-    const { baseUrl, paths } = options
+    const compilerOptions = config.compilerOptions || {}
+    const { baseUrl, paths } = compilerOptions
     if (!baseUrl && !paths) {
       debug(`[!] missing baseUrl and paths: "${configPath}"`)
       return null
@@ -324,13 +419,15 @@ export default (opts: PluginOptions = {}): Plugin => {
       resolveId = resolveWithBaseUrl!
     }
 
-    const configDir = dirname(configPath)
+    const configDir = path.dirname(configPath)
+
+    let outDir =
+      compilerOptions.outDir && path.normalize(compilerOptions.outDir)
 
     // When `tsconfck.parseNative` is used, the outDir is absolute, which
     // is not what `getIncluder` expects.
-    let { outDir } = options
-    if (outDir && isAbsolute(outDir)) {
-      outDir = relative(configDir, outDir)
+    if (outDir && path.isAbsolute(outDir)) {
+      outDir = path.relative(configDir, outDir)
     }
 
     const isIncludedRelative = getIncluder(
@@ -341,18 +438,16 @@ export default (opts: PluginOptions = {}): Plugin => {
 
     const importerExtRE = opts.loose
       ? /./
-      : options.allowJs || basename(configPath).startsWith('jsconfig.')
+      : compilerOptions.allowJs ||
+        path.basename(configPath).startsWith('jsconfig.')
       ? jsLikeRE
       : /\.[mc]?tsx?$/
 
     const resolutionCache = new Map<string, string>()
 
     return async (viteResolve, id, importer) => {
-      // Ideally, Vite would normalize the importer path for us.
-      importer = normalizePath(importer)
-
       // Remove query and hash parameters from the importer path.
-      const importerFile = importer.replace(/[#?].+$/, '')
+      const importerFile = path.normalize(importer.replace(/[#?].+$/, ''))
 
       // Ignore importers with unsupported extensions.
       if (!importerExtRE.test(importerFile)) {
@@ -361,7 +456,7 @@ export default (opts: PluginOptions = {}): Plugin => {
       }
 
       // Respect the include/exclude properties.
-      const relativeImporterFile = relative(configDir, importerFile)
+      const relativeImporterFile = path.relative(configDir, importerFile)
       if (!isIncludedRelative(relativeImporterFile)) {
         debugResolve('importer is not included. skipping...')
         return notApplicable
