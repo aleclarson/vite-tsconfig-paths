@@ -15,6 +15,13 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 [`vite`]: https://github.com/vitejs/vite
 
+> [!NOTE]
+> **New in v6** – This plugin now supports on-demand tsconfig loading, along with automatic reloading when tsconfig files are changed. Use the new `projectDiscovery: "lazy"` option to enable this behavior (currently in beta).
+>
+> ```sh
+> pnpm add vite-tsconfig-paths@next -D
+> ```
+
 ## Install
 
 ```sh
@@ -91,6 +98,12 @@ export default defineConfig({
   plugins: [tsconfigPaths({ /* options go here */ })],
 })
 ```
+
+#### `projectDiscovery: "eager" | "lazy"`
+
+Control how tsconfig files are discovered and loaded. By default, `"eager"` is used, which means your Vite project is scanned for tsconfig files when the plugin is initialized, and never again after that. The `root` option only works in eager mode.
+
+When `"lazy"` is used, tsconfig files are only scanned when an import is encountered in a module with a supported file extension that exists in the same directory as the `tsconfig.json` file (or one of its subdirectories). In other words, importers with a `tsconfig.json` or `jsconfig.json` file in one of their parent directories will have their imports resolved by this plugin.
 
 #### `root: string`
 
