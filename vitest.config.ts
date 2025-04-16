@@ -6,5 +6,8 @@ export default defineConfig({
     globals: true,
     isolate: false,
     testTimeout: 10000,
+    env: {
+      TEST: 'vite-tsconfig-paths',
+    },
   },
 })
