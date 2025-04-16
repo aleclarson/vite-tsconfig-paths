@@ -163,6 +163,23 @@ export default (opts: PluginOptions = {}): Plugin => {
         data.projects.push(project)
       }
 
+      const loadProject = async (projectPath: string, data?: Directory) => {
+        const project = await parseProject(projectPath)
+        if (project) {
+          addProject(project, data)
+        } else {
+          // Try again if the file changes.
+          watchProjectPath(projectPath)
+        }
+      }
+
+      // Ensure a deterministic order.
+      const sortProjects = (projects: Project[]) => {
+        projects.sort((left, right) =>
+          left.tsconfigFile.localeCompare(right.tsconfigFile)
+        )
+      }
+
       processConfigFile = async (dir, name) => {
         if (!configNames.includes(name)) {
           return
@@ -188,10 +205,20 @@ export default (opts: PluginOptions = {}): Plugin => {
           (project) => project.tsconfigFile === file
         )
         if (index !== -1) {
-          resolversByProject.delete(data.projects[index])
+          const project = data.projects[index]
+          resolversByProject.delete(project)
           data.projects.splice(index, 1)
+
           if (event === 'change') {
-            data.lazyDiscovery = null
+            if (opts.projectDiscovery === 'lazy') {
+              data.lazyDiscovery = null
+            } else {
+              loadProject(project.tsconfigFile, data)
+                .then(() => {
+                  sortProjects(data.projects)
+                })
+                .catch(console.error)
+            }
           }
         }
       }
@@ -221,28 +248,34 @@ export default (opts: PluginOptions = {}): Plugin => {
 
         debug('Eagerly parsing these projects:', projectPaths)
 
-        for (const project of new Set(
-          await Promise.all(projectPaths.map(parseProject))
-        )) {
-          if (project) {
-            addProject(project)
-          }
+        await Promise.all(
+          Array.from(new Set(projectPaths), (projectPath) =>
+            loadProject(projectPath)
+          )
+        )
+        for (const data of directoryCache.values()) {
+          sortProjects(data.projects)
         }
       }
 
       // Only used when projectDiscovery is 'lazy'.
       const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
+        debug('Searching directory for tsconfig files:', dir)
         const names = await readdir(dir).catch(() => [])
         await Promise.all(names.map((name) => processConfigFile(dir, name)))
 
         if (data.projects.length) {
-          // Ensure a deterministic order.
-          data.projects.sort((left, right) =>
-            left.tsconfigFile.localeCompare(right.tsconfigFile)
-          )
+          sortProjects(data.projects)
+          if (debug.enabled) {
+            debug(
+              `Directory "${dir}" contains the following tsconfig files:`,
+              data.projects.map((p) => path.basename(p.tsconfigFile))
+            )
+          }
         } else {
           // No projects found. Reduce memory usage with a stand-in.
           directoryCache.set(dir, emptyDirectory)
+          debug('No tsconfig files found in directory:', dir)
         }
       }
 
@@ -285,29 +318,27 @@ export default (opts: PluginOptions = {}): Plugin => {
     configureServer(server) {
       viteDevServer = server
 
-      if (opts.projectDiscovery === 'lazy') {
-        server.watcher.on('all', (event, file) => {
-          const normalizedFile = path.normalize(file)
-          if (
-            !path.isAbsolute(normalizedFile) ||
-            !watchedProjectPaths.has(normalizedFile)
-          ) {
-            return
-          }
-          if (event === 'add') {
-            processConfigFile(
-              path.dirname(normalizedFile),
-              path.basename(normalizedFile)
-            )
-          } else if (event === 'change' || event === 'unlink') {
-            invalidateConfigFile(
-              path.dirname(normalizedFile),
-              path.basename(normalizedFile),
-              event
-            )
-          }
-        })
-      }
+      server.watcher.on('all', (event, file) => {
+        const normalizedFile = path.normalize(file)
+        if (
+          !path.isAbsolute(normalizedFile) ||
+          !watchedProjectPaths.has(normalizedFile)
+        ) {
+          return
+        }
+        if (event === 'add') {
+          processConfigFile(
+            path.dirname(normalizedFile),
+            path.basename(normalizedFile)
+          ).catch(console.error)
+        } else if (event === 'change' || event === 'unlink') {
+          invalidateConfigFile(
+            path.dirname(normalizedFile),
+            path.basename(normalizedFile),
+            event
+          )
+        }
+      })
     },
     async resolveId(id, importer, options) {
       if (debugResolve.enabled) {
