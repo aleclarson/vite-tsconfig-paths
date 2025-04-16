@@ -1,4 +1,4 @@
-import { createWriteStream, statSync, writeFileSync } from 'fs'
+import { createWriteStream, statSync, writeFileSync } from 'node:fs'
 import { debug } from './debug'
 
 type ImportDetails = { importer: string | undefined; id: string }
