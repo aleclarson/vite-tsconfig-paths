@@ -191,6 +191,7 @@ export default (opts: PluginOptions = {}): Plugin => {
           (project) => project.tsconfigFile === file
         )
         if (index !== -1) {
+          resolversByProject.delete(data.projects[index])
           data.projects.splice(index, 1)
           if (event === 'change') {
             data.lazyDiscovery = null
