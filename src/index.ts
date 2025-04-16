@@ -471,10 +471,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
           if (id[0] === '/') {
             return
           }
-
           const absoluteId = join(baseUrl, id)
-          debug('Trying with baseUrl:', absoluteId)
-
           const resolvedId = await viteResolve(absoluteId, importer)
           if (resolvedId) {
             logFile?.write('resolvedWithBaseUrl', {
@@ -513,10 +510,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
               const matchIndex = Math.min(++starCount, match.length - 1)
               return match[matchIndex]
             })
-
-            debug('Found match, trying to resolve:', mappedId)
             candidates?.push(mappedId)
-
             const resolvedId = await viteResolve(mappedId, importer)
             if (resolvedId) {
               logFile?.write('resolvedWithPaths', {
