@@ -1,9 +1,11 @@
 import * as fs from 'fs'
 import { readdir } from 'fs/promises'
 import globRex from 'globrex'
+import * as tsconfck from 'tsconfck'
 import { isAbsolute, join, relative } from 'path'
 import { inspect } from 'util'
-import { ViteDevServer, Plugin, searchForWorkspaceRoot } from 'vite'
+import { ViteDevServer } from 'vite'
+import * as vite from 'vite'
 import { debug } from './debug'
 import { resolvePathMappings } from './mappings'
 import type { NormalizedPath } from './path'
@@ -28,7 +30,10 @@ const emptyDirectory: Directory = {
 
 export type { PluginOptions }
 
-export default (opts: PluginOptions = {}): Plugin => {
+export default (opts: PluginOptions = {}): vite.Plugin => {
+  let projectRoot: NormalizedPath
+  let workspaceRoot: NormalizedPath
+  let hasTypeScriptDep: boolean
   let processConfigFile: (
     dir: NormalizedPath,
     name: string,
@@ -41,9 +46,9 @@ export default (opts: PluginOptions = {}): Plugin => {
   ) => void
   let getResolvers: (importer: string) => AsyncIterable<Resolver>
   let viteDevServer: ViteDevServer | undefined
-
-  const directoryCache = new Map<string, Directory>()
-  const resolversByProject = new WeakMap<Project, Resolver>()
+  let viteLogger: vite.Logger
+  let directoryCache: Map<string, Directory>
+  let resolversByProject: WeakMap<Project, Resolver>
 
   const configNames = opts.configNames || ['tsconfig.json', 'jsconfig.json']
   debug(
@@ -60,9 +65,8 @@ export default (opts: PluginOptions = {}): Plugin => {
   return {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
-    async configResolved(config) {
-      let projectRoot: NormalizedPath
-      let workspaceRoot: NormalizedPath
+    configResolved(config) {
+      viteLogger = config.logger
 
       let { root } = opts
       if (root) {
@@ -70,12 +74,12 @@ export default (opts: PluginOptions = {}): Plugin => {
         debug('Forced root:', root)
       } else {
         projectRoot = path.normalize(config.root)
-        workspaceRoot = path.normalize(searchForWorkspaceRoot(config.root))
+        workspaceRoot = path.normalize(vite.searchForWorkspaceRoot(config.root))
         debug('Project root:  ', projectRoot)
         debug('Workspace root:', workspaceRoot)
       }
 
-      let hasTypeScriptDep = false
+      hasTypeScriptDep = false
       if (opts.parseNative) {
         try {
           const pkgJson = fs.readFileSync(
@@ -91,9 +95,10 @@ export default (opts: PluginOptions = {}): Plugin => {
           }
         }
       }
-
-      // tsconfck is ESM only, so import(…) is needed for CommonJS support.
-      const tsconfck = await import('tsconfck')
+    },
+    async buildStart() {
+      directoryCache = new Map()
+      resolversByProject = new WeakMap()
 
       let isFirstParseError = true
 
@@ -113,7 +118,7 @@ export default (opts: PluginOptions = {}): Plugin => {
               debug('Remove the `ignoreConfigErrors` option to see the error.')
             }
           } else {
-            config.logger.error(
+            viteLogger.error(
               '[tsconfig-paths] An error occurred while parsing "' +
                 tsconfigFile +
                 '". See below for details.' +
@@ -122,7 +127,7 @@ export default (opts: PluginOptions = {}): Plugin => {
                   : ''),
               { error }
             )
-            if (!config.logger.hasErrorLogged(error)) {
+            if (!viteLogger.hasErrorLogged(error)) {
               console.error(error)
             }
           }
