@@ -330,12 +330,28 @@ export default (opts: PluginOptions = {}): Plugin => {
         return
       }
 
+      // Attempt to coerce the importer to a file path. The importer may be
+      // a "virtual module" that may not exist in the filesystem, or it may
+      // be derived from a real file.
+      let importerFile = importer
+      if (importer[0] === '\0') {
+        // Check if the real file path is provided in the query string. For
+        // example, the WXT framework for browser extensions does this.
+        const index = importer.indexOf('?')
+        if (index !== -1) {
+          const query = path.normalize(importer.slice(index + 1))
+          if (path.isAbsolute(query) && fs.existsSync(query)) {
+            importerFile = query
+          }
+        }
+      }
+
       // For Vite 4 and under, skipSelf needs to be set.
       const resolveOptions = { ...options, skipSelf: true }
       const viteResolve: ViteResolve = async (id, importer) =>
         (await this.resolve(id, importer, resolveOptions))?.id
 
-      for await (const resolveId of getResolvers(importer)) {
+      for await (const resolveId of getResolvers(importerFile)) {
         const [resolved, matched] = await resolveId(viteResolve, id, importer)
         if (resolved) {
           return resolved
