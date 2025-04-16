@@ -75,7 +75,7 @@ To enable path resolution in non-TypeScript modules (e.g. `.vue`, `.svelte`, `.m
 tsconfigPaths({ loose: true })
 ```
 
-### ⚠️ TSConfigs are not watched.
+### ⚠️ TSConfigs are not watched. (v5 and below)
 
 You should restart Vite when you make changes to a tsconfig file; particularly these settings: `include`, `exclude`, `compilerOptions.paths`, and `compilerOptions.baseUrl`.
 
