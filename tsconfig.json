@@ -3,8 +3,8 @@
   "compilerOptions": {
     "declaration": true,
     "lib": ["es2018"],
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "noUnusedLocals": true,
     "outDir": "dist",
