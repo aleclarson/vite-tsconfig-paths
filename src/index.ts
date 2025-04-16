@@ -566,7 +566,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       ? /$/
       : compilerOptions.allowJs ||
         path.basename(configPath).startsWith('jsconfig.')
-      ? /\.(vue|svelte|mdx|[mc]?[jt]sx?)$/
+      ? /\.(astro|mdx|svelte|vue|[mc]?[jt]sx?)$/
       : /\.[mc]?tsx?$/
 
     const resolutionCache = new Map<string, string>()
