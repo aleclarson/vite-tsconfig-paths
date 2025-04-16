@@ -3,7 +3,7 @@ import { readdir } from 'fs/promises'
 import globRex from 'globrex'
 import { isAbsolute, join, relative } from 'path'
 import { inspect } from 'util'
-import { Plugin, searchForWorkspaceRoot } from 'vite'
+import { ViteDevServer, Plugin, searchForWorkspaceRoot } from 'vite'
 import { debug, debugResolve } from './debug'
 import { resolvePathMappings } from './mappings'
 import type { NormalizedPath } from './path'
@@ -35,9 +35,11 @@ export default (opts: PluginOptions = {}): Plugin => {
     event: 'change' | 'unlink'
   ) => void
   let getResolvers: (importer: string) => AsyncIterable<Resolver>
+  let viteDevServer: ViteDevServer | undefined
 
   const directoryCache: Partial<Record<string, Directory>> = {}
   const resolversByProject = new WeakMap<Project, Resolver>()
+  const watchedProjectPaths = new Set<string>()
 
   return {
     name: 'vite-tsconfig-paths',
@@ -115,7 +117,24 @@ export default (opts: PluginOptions = {}): Plugin => {
         })
       }
 
+      const watchProjectPath = (projectPath: string) => {
+        if (watchedProjectPaths.has(projectPath)) {
+          return false
+        }
+        watchedProjectPaths.add(projectPath)
+        viteDevServer?.watcher.add(projectPath)
+        return true
+      }
+
       const addProject = (project: Project, data?: Directory) => {
+        if (!watchProjectPath(project.tsconfigFile)) {
+          return
+        }
+
+        project.extended?.forEach((projectParent) => {
+          watchProjectPath(projectParent.tsconfigFile)
+        })
+
         // Referenced projects must be added first, so they can override
         // the parent project's paths if both are in the same directory.
         project.referenced?.forEach((projectRef) => {
@@ -129,39 +148,16 @@ export default (opts: PluginOptions = {}): Plugin => {
 
         if (!data) {
           const dir = path.dirname(project.tsconfigFile)
-          data = directoryCache[dir] ||= {
-            projects: [],
-            lazyDiscovery: null,
+          data = directoryCache[dir]
+          if (!data || data === emptyDirectory) {
+            data = directoryCache[dir] = {
+              projects: [],
+              lazyDiscovery: null,
+            }
           }
         }
+
         data.projects.push(project)
-      }
-
-      const shouldSkipDir = (dir: string) => {
-        if (dir === '.git' || dir === 'node_modules') {
-          return true
-        }
-        if (typeof opts.skip === 'function') {
-          return opts.skip(dir)
-        }
-        return false
-      }
-
-      // Only used when projectDiscovery is 'lazy'. The logic for eager
-      // discovery is after the `invalidateConfigFile` implementation.
-      const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
-        const names = await readdir(dir)
-        await Promise.all(names.map((name) => processConfigFile(dir, name)))
-
-        if (data.projects.length) {
-          // Ensure a deterministic order.
-          data.projects.sort((left, right) =>
-            left.tsconfigFile.localeCompare(right.tsconfigFile)
-          )
-        } else {
-          // No projects found. Reduce memory usage with a stand-in.
-          directoryCache[dir] = emptyDirectory
-        }
       }
 
       processConfigFile = async (dir, name) => {
@@ -179,6 +175,9 @@ export default (opts: PluginOptions = {}): Plugin => {
         const project = await parseProject(tsconfigFile)
         if (project) {
           addProject(project, data)
+        } else {
+          // Try again if the file changes.
+          watchProjectPath(tsconfigFile)
         }
       }
 
@@ -197,6 +196,16 @@ export default (opts: PluginOptions = {}): Plugin => {
             data.lazyDiscovery = null
           }
         }
+      }
+
+      const shouldSkipDir = (dir: string) => {
+        if (dir === '.git' || dir === 'node_modules') {
+          return true
+        }
+        if (typeof opts.skip === 'function') {
+          return opts.skip(dir)
+        }
+        return false
       }
 
       if (opts.projects || opts.projectDiscovery !== 'lazy') {
@@ -220,6 +229,22 @@ export default (opts: PluginOptions = {}): Plugin => {
           if (project) {
             addProject(project)
           }
+        }
+      }
+
+      // Only used when projectDiscovery is 'lazy'.
+      const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
+        const names = await readdir(dir)
+        await Promise.all(names.map((name) => processConfigFile(dir, name)))
+
+        if (data.projects.length) {
+          // Ensure a deterministic order.
+          data.projects.sort((left, right) =>
+            left.tsconfigFile.localeCompare(right.tsconfigFile)
+          )
+        } else {
+          // No projects found. Reduce memory usage with a stand-in.
+          directoryCache[dir] = emptyDirectory
         }
       }
 
@@ -257,10 +282,15 @@ export default (opts: PluginOptions = {}): Plugin => {
       }
     },
     configureServer(server) {
+      viteDevServer = server
+
       if (opts.projectDiscovery === 'lazy') {
         server.watcher.on('all', (event, file) => {
           const normalizedFile = path.normalize(file)
-          if (!path.isAbsolute(normalizedFile)) {
+          if (
+            !path.isAbsolute(normalizedFile) ||
+            !watchedProjectPaths.has(normalizedFile)
+          ) {
             return
           }
           if (event === 'add') {
