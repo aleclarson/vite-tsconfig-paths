@@ -4,7 +4,7 @@ import globRex from 'globrex'
 import { isAbsolute, join, relative } from 'path'
 import { inspect } from 'util'
 import { ViteDevServer, Plugin, searchForWorkspaceRoot } from 'vite'
-import { debug, debugResolve } from './debug'
+import { debug } from './debug'
 import { resolvePathMappings } from './mappings'
 import type { NormalizedPath } from './path'
 import * as path from './path'
@@ -15,6 +15,7 @@ import {
   Resolver,
   ViteResolve,
 } from './types'
+import { createLogFile } from './logFile'
 
 const notApplicable = [undefined, false] as const
 const notFound = [undefined, true] as const
@@ -37,6 +38,7 @@ export default (opts: PluginOptions = {}): Plugin => {
   let getResolvers: (importer: string) => AsyncIterable<Resolver>
   let viteDevServer: ViteDevServer | undefined
 
+  const logFile = opts.logFile ? createLogFile(opts.logFile) : null
   const directoryCache = new Map<string, Directory>()
   const resolversByProject = new WeakMap<Project, Resolver>()
   const watchedProjectPaths = new Set<string>()
@@ -83,25 +85,25 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       let isFirstParseError = true
 
-      const parseProject = (tsconfigFile: string): Promise<Project | null> => {
-        tsconfigFile = path.normalize(tsconfigFile)
+      const parseProject = (projectPath: string): Promise<Project | null> => {
+        projectPath = path.normalize(projectPath)
 
         const projectPromise = (
           hasTypeScriptDep
-            ? tsconfck.parseNative(tsconfigFile)
-            : tsconfck.parse(tsconfigFile)
+            ? tsconfck.parseNative(projectPath)
+            : tsconfck.parse(projectPath)
         ) as Promise<Project>
 
         return projectPromise.catch((error) => {
           if (opts.ignoreConfigErrors) {
-            debug('Failed to parse tsconfig file at %s', tsconfigFile)
+            debug('[!] Failed to parse tsconfig file at %s', projectPath)
             if (isFirstParseError) {
               debug('Remove the `ignoreConfigErrors` option to see the error.')
             }
           } else {
             config.logger.error(
               '[tsconfig-paths] An error occurred while parsing "' +
-                tsconfigFile +
+                projectPath +
                 '". See below for details.' +
                 (isFirstParseError
                   ? ' To disable this message, set the `ignoreConfigErrors` option to true.'
@@ -341,24 +343,20 @@ export default (opts: PluginOptions = {}): Plugin => {
       })
     },
     async resolveId(id, importer, options) {
-      if (debugResolve.enabled) {
-        debugResolve('resolving:', { id, importer })
-      }
-
       if (!importer) {
-        debugResolve('importer is empty or undefined. skipping...')
+        logFile?.write('emptyImporter', { importer, id })
         return
       }
       if (relativeImportRE.test(id)) {
-        debugResolve('id is a relative import. skipping...')
+        logFile?.write('relativeId', { importer, id })
         return
       }
       if (path.isAbsolute(id)) {
-        debugResolve('id is an absolute path. skipping...')
+        logFile?.write('absoluteId', { importer, id })
         return
       }
       if (id.includes('\0')) {
-        debugResolve('id is a virtual module. skipping...')
+        logFile?.write('virtualId', { importer, id })
         return
       }
 
@@ -373,8 +371,15 @@ export default (opts: PluginOptions = {}): Plugin => {
         if (index !== -1) {
           const query = path.normalize(importer.slice(index + 1))
           if (path.isAbsolute(query) && fs.existsSync(query)) {
+            debug('Rewriting virtual importer to real file:', importer)
             importerFile = query
+          } else {
+            logFile?.write('virtualImporter', { importer, id })
+            return
           }
+        } else {
+          logFile?.write('virtualImporter', { importer, id })
+          return
         }
       }
 
@@ -418,7 +423,7 @@ export default (opts: PluginOptions = {}): Plugin => {
     const configPath = project.tsconfigFile
     const config = project.tsconfig
 
-    debug('config loaded:', inspect({ configPath, config }, false, 10, true))
+    debug('Config loaded:', inspect({ configPath, config }, false, 10, true))
 
     // Sometimes a tsconfig is not meant to be used for path resolution,
     // but rather for pointing to other tsconfig files and possibly being
@@ -426,17 +431,13 @@ export default (opts: PluginOptions = {}): Plugin => {
     // array and a missing/empty "include" array.
     if (config.files?.length == 0 && !config.include?.length) {
       debug(
-        `[!] skipping "${configPath}" as no files can be matched since "files" is empty and "include" is missing or empty`
+        `[!] Skipping "${configPath}" as no files can be matched since "files" is empty and "include" is missing or empty.`
       )
       return null
     }
 
     const compilerOptions = config.compilerOptions || {}
     const { baseUrl, paths } = compilerOptions
-    if (!baseUrl && !paths) {
-      debug(`[!] missing baseUrl and paths: "${configPath}"`)
-      return null
-    }
 
     type InternalResolver = (
       viteResolve: ViteResolve,
@@ -445,10 +446,20 @@ export default (opts: PluginOptions = {}): Plugin => {
     ) => Promise<string | undefined>
 
     const resolveWithBaseUrl: InternalResolver | undefined = baseUrl
-      ? (viteResolve, id, importer) => {
+      ? async (viteResolve, id, importer) => {
           const absoluteId = join(baseUrl, id)
-          debugResolve('trying with baseUrl:', absoluteId)
-          return viteResolve(absoluteId, importer)
+          debug('Trying with baseUrl:', absoluteId)
+
+          const resolvedId = await viteResolve(absoluteId, importer)
+          if (resolvedId) {
+            logFile?.write('resolvedWithBaseUrl', {
+              importer,
+              id,
+              resolvedId,
+              configPath,
+            })
+            return resolvedId
+          }
         }
       : undefined
 
@@ -462,6 +473,7 @@ export default (opts: PluginOptions = {}): Plugin => {
         id,
         importer
       ) => {
+        const candidates = logFile ? ([] as string[]) : null
         for (const mapping of pathMappings) {
           const match = id.match(mapping.pattern)
           if (!match) {
@@ -476,25 +488,42 @@ export default (opts: PluginOptions = {}): Plugin => {
               const matchIndex = Math.min(++starCount, match.length - 1)
               return match[matchIndex]
             })
-            debugResolve('found match, trying to resolve:', mappedId)
-            const resolved = await viteResolve(mappedId, importer)
-            if (resolved) {
-              return resolved
+
+            debug('Found match, trying to resolve:', mappedId)
+            candidates?.push(mappedId)
+
+            const resolvedId = await viteResolve(mappedId, importer)
+            if (resolvedId) {
+              logFile?.write('resolvedWithPaths', {
+                importer,
+                id,
+                resolvedId,
+                configPath,
+              })
+              return resolvedId
             }
           }
         }
+        logFile?.write('notFound', {
+          importer,
+          id,
+          candidates,
+          configPath,
+        })
       }
 
       if (resolveWithBaseUrl) {
-        resolveId = (viteResolve, id, importer) =>
-          resolveWithPaths(viteResolve, id, importer).then((resolved) => {
-            return resolved ?? resolveWithBaseUrl(viteResolve, id, importer)
-          })
+        resolveId = async (viteResolve, id, importer) =>
+          (await resolveWithPaths(viteResolve, id, importer)) ??
+          (await resolveWithBaseUrl(viteResolve, id, importer))
       } else {
         resolveId = resolveWithPaths
       }
+    } else if (resolveWithBaseUrl) {
+      resolveId = resolveWithBaseUrl
     } else {
-      resolveId = resolveWithBaseUrl!
+      debug(`[!] Skipping "${configPath}" as no paths or baseUrl are defined.`)
+      return null
     }
 
     const configDir = path.dirname(configPath)
@@ -529,14 +558,14 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       // Ignore importers with unsupported extensions.
       if (!importerExtRE.test(importerFile)) {
-        debugResolve('importer has unsupported extension. skipping...')
+        logFile?.write('unsupportedExtension', { importer, id })
         return notApplicable
       }
 
       // Respect the include/exclude properties.
       const relativeImporterFile = path.relative(configDir, importerFile)
       if (!isIncludedRelative(relativeImporterFile)) {
-        debugResolve('importer is not included. skipping...')
+        logFile?.write('configMismatch', { importer, id, configPath })
         return notApplicable
       }
 
@@ -554,14 +583,6 @@ export default (opts: PluginOptions = {}): Plugin => {
           return notFound
         }
         resolutionCache.set(id, resolvedId)
-        if (debugResolve.enabled) {
-          debugResolve('resolved without error:', {
-            id,
-            importer,
-            resolvedId,
-            configPath,
-          })
-        }
       }
 
       // Restore the suffix if one was removed earlier.
@@ -601,7 +622,19 @@ function getIncluder(
 
     includePaths.forEach(addCompiledGlob, includers)
     excludePaths.forEach(addCompiledGlob, excluders)
-    debug(`compiled globs:`, { includers, excluders })
+
+    if (debug.enabled) {
+      debug(`Compiled tsconfig globs:`, {
+        include: {
+          globs: includePaths,
+          regexes: includers,
+        },
+        exclude: {
+          globs: excludePaths,
+          regexes: excluders,
+        },
+      })
+    }
 
     return (path: string) => {
       path = path.replace(/\?.+$/, '')

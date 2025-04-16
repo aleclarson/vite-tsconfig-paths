@@ -91,6 +91,10 @@ export interface PluginOptions {
    * @default "eager"
    */
   projectDiscovery?: 'eager' | 'lazy'
+  /**
+   * A file to write detailed logs of the resolver process.
+   */
+  logFile?: string
 }
 
 type Merge<T, U> = Omit<T, keyof U> & U
