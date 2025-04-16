@@ -596,7 +596,14 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       }
 
       let resolvedId = resolutionCache.get(id)
-      if (!resolvedId) {
+      if (resolvedId) {
+        logFile?.write('resolvedFromCache', {
+          importer,
+          id,
+          resolvedId,
+          configPath,
+        })
+      } else {
         resolvedId = await resolveId(viteResolve, id, importer)
         if (!resolvedId) {
           return notFound

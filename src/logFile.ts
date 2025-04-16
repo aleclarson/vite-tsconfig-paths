@@ -14,6 +14,7 @@ export type LogEvent =
   | ['virtualId', ImportDetails]
   | ['resolvedWithBaseUrl', ResolveDetails]
   | ['resolvedWithPaths', ResolveDetails]
+  | ['resolvedFromCache', ResolveDetails]
   | ['notFound', NotFoundDetails]
   | ['configMismatch', ConfigDetails]
 
