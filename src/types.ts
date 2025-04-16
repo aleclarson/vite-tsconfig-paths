@@ -94,7 +94,7 @@ export interface PluginOptions {
   /**
    * A file to write detailed logs of the resolver process.
    */
-  logFile?: string
+  logFile?: string | boolean
 }
 
 type Merge<T, U> = Omit<T, keyof U> & U

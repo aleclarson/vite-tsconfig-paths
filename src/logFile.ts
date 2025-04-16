@@ -1,4 +1,5 @@
-import { createWriteStream, writeFileSync } from 'fs'
+import { createWriteStream, statSync, writeFileSync } from 'fs'
+import { debug } from './debug'
 
 type ImportDetails = { importer: string | undefined; id: string }
 type ConfigDetails = ImportDetails & { configPath: string }
@@ -23,7 +24,17 @@ export type LogEvent =
  * your shell environment.
  */
 export function createLogFile(logFilePath: string) {
-  writeFileSync(logFilePath, '')
+  let mtime: number | undefined
+  try {
+    mtime = statSync(logFilePath).mtime.getTime()
+  } catch {}
+
+  // Clear the log file if it's older than 10 seconds.
+  if (!mtime || Date.now() - mtime > 10_000) {
+    debug('Clearing log file:', logFilePath)
+    writeFileSync(logFilePath, '')
+  }
+
   const logFile = createWriteStream(logFilePath, {
     flags: 'a',
     encoding: 'utf-8',
