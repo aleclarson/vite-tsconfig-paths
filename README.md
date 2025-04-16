@@ -21,6 +21,8 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 > ```sh
 > pnpm add vite-tsconfig-paths@next -D
 > ```
+>
+> See the [Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases) for more details.
 
 ## Install
 
