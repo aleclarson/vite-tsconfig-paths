@@ -234,7 +234,7 @@ export default (opts: PluginOptions = {}): Plugin => {
 
       // Only used when projectDiscovery is 'lazy'.
       const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
-        const names = await readdir(dir)
+        const names = await readdir(dir).catch(() => [])
         await Promise.all(names.map((name) => processConfigFile(dir, name)))
 
         if (data.projects.length) {
