@@ -76,7 +76,7 @@ export interface PluginOptions {
    *
    * **Note 1:** If your `tsconfig.json` files have `../*` paths in their
    * `include` or `files` array, the "lazy" strategy is not recommended,
-   * because the tsconfig file won't be discovered.
+   * since the tsconfig file won't be discovered for those cases.
    *
    * **Note 2:** You can combine the `projects` option with "lazy" to
    * ensure your project references are discovered. Alternatively, the
