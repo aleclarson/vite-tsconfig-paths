@@ -16,7 +16,7 @@
     "clean": "rimraf dist && git checkout HEAD dist",
     "dev": "pnpm bundle --watch",
     "build": "pnpm clean && pnpm bundle",
-    "bundle": "tsup-node src/index.ts --sourcemap --dts --format esm",
+    "bundle": "tsup src/index.ts --sourcemap --dts --format esm",
     "prepare": "pnpm build",
     "test": "vitest"
   },
