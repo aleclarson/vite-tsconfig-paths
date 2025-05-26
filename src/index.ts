@@ -392,6 +392,16 @@ export default (opts: PluginOptions = {}): Plugin => {
         }
       }
 
+      // We need to support import of `.d.ts` files using "paths"
+      // In this case there is no need to resolve them, since there is no executable code in `.d.ts` files.
+      // Regex is accounting for `resolveId` in following variations:
+      // * `somepath/types.dts`
+      // * `somepath/types.dts?v=salt123`
+      if (/\.(d\.ts|d\.ts\?\S+)$/.test(resolvedId)) {
+        debugResolve('trying to resolve types. skipping...');
+        return notApplicable;
+      }
+
       // Restore the suffix if one was removed earlier.
       if (suffix) {
         resolvedId += suffix
