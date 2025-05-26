@@ -398,8 +398,8 @@ export default (opts: PluginOptions = {}): Plugin => {
       // * `somepath/types.dts`
       // * `somepath/types.dts?v=salt123`
       if (/\.(d\.ts|d\.ts\?\S+)$/.test(resolvedId)) {
-        debugResolve('trying to resolve types. skipping...');
-        return notApplicable;
+        debugResolve('trying to resolve types. skipping...')
+        return notApplicable
       }
 
       // Restore the suffix if one was removed earlier.

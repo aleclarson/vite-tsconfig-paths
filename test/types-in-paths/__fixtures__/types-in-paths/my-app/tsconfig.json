@@ -1,0 +1,11 @@
+{
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "paths": {
+      "my-utils/log": ["../my-utils/types/internal.d.ts"]
+    }
+  }
+}
