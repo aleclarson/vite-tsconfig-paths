@@ -18,7 +18,6 @@ import {
   ViteResolve,
 } from './types'
 import { createLogFile } from './logFile'
-import { FilePathMap, fixFilePathCasing, includesFilePath } from './FilePathMap'
 
 const notApplicable = [undefined, false] as const
 const notFound = [undefined, true] as const
@@ -48,13 +47,10 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
   let getResolvers: (importer: string) => AsyncIterable<Resolver>
   let viteDevServer: ViteDevServer | undefined
   let viteLogger: vite.Logger
-  let directoryCache: FilePathMap<Directory>
+  let directoryCache: Map<string, Directory>
   let resolversByProject: WeakMap<Project, Resolver>
 
-  const configNames = opts.configNames?.map(fixFilePathCasing) || [
-    'tsconfig.json',
-    'jsconfig.json',
-  ]
+  const configNames = opts.configNames || ['tsconfig.json', 'jsconfig.json']
   debug(
     'Only tsconfig files with a name in this list will be lazily discovered:',
     configNames
@@ -101,13 +97,13 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       }
     },
     async buildStart() {
-      directoryCache = new FilePathMap()
+      directoryCache = new Map()
       resolversByProject = new WeakMap()
 
       let isFirstParseError = true
 
       const parseProject = (tsconfigFile: string): Promise<Project | null> => {
-        tsconfigFile = fixFilePathCasing(path.normalize(tsconfigFile))
+        tsconfigFile = path.normalize(tsconfigFile)
 
         const projectPromise = (
           hasTypeScriptDep
@@ -203,7 +199,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         if (!data) {
           return // Wait to be loaded on-demand.
         }
-        const file = fixFilePathCasing(path.join(dir, name as NormalizedPath))
+        const file = path.join(dir, name as NormalizedPath)
         if (data.projects.some((p) => p.tsconfigFile === file)) {
           return
         }
@@ -215,7 +211,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         if (!data) {
           return
         }
-        const file = fixFilePathCasing(path.join(dir, name as NormalizedPath))
+        const file = path.join(dir, name as NormalizedPath)
         const index = data.projects.findIndex(
           (project) => project.tsconfigFile === file
         )
@@ -283,7 +279,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
 
         await Promise.all(
           names
-            .filter((name) => includesFilePath(configNames, name))
+            .filter((name) => configNames.includes(name))
             .map((name) => {
               return processConfigFile(dir, name, data)
             })
@@ -352,7 +348,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
           return
         }
         if (event === 'add') {
-          if (includesFilePath(configNames, path.basename(normalizedFile))) {
+          if (configNames.includes(path.basename(normalizedFile))) {
             processConfigFile(
               path.dirname(normalizedFile),
               path.basename(normalizedFile)

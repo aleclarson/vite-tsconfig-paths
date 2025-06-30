@@ -36,9 +36,6 @@ importers:
       execa:
         specifier: ^9.5.1
         version: 9.5.1
-      is-fs-case-sensitive:
-        specifier: ^1.0.0
-        version: 1.0.0
       klona:
         specifier: ^2.0.4
         version: 2.0.6
@@ -973,9 +970,6 @@ packages:
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
-
-  is-fs-case-sensitive@1.0.0:
-    resolution: {integrity: sha512-hyEEHrtR68ooLwGLgdf3bTXZ5u2mHg7TUhmQDm3Zc+06dURnKTUNXah6jgg/qjK/kuSFjCbJGEJCmXgXYfOerw==}
 
   is-fullwidth-code-point@3.0.0:
     resolution: {integrity: sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==}
@@ -2190,8 +2184,6 @@ snapshots:
       binary-extensions: 2.3.0
 
   is-extglob@2.1.1: {}
-
-  is-fs-case-sensitive@1.0.0: {}
 
   is-fullwidth-code-point@3.0.0: {}
 
