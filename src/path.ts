@@ -6,7 +6,14 @@ const isWindows = os.platform() == 'win32'
 
 export type NormalizedPath = string & { __normalized: true }
 
-export const normalize = vite.normalizePath as (p: string) => NormalizedPath
+export const normalize = (p: string): NormalizedPath => {
+  let output = vite.normalizePath(p)
+  // Normalize the drive letter casing on Windows to upper case,
+  if (isWindows && output[1] === ':') {
+    output = output[0].toUpperCase() + output.substring(1)
+  }
+  return output as NormalizedPath
+}
 
 export const parse: (p: NormalizedPath) => {
   root: NormalizedPath
