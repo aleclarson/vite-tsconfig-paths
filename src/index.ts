@@ -564,6 +564,8 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
 
     const importerExtRE = opts.loose
       ? /$/
+      : opts.allowImporterRe
+      ? opts.allowImporterRe
       : compilerOptions.allowJs ||
         path.basename(configPath).startsWith('jsconfig.')
       ? /\.(astro|mdx|svelte|vue|[mc]?[jt]sx?)$/
