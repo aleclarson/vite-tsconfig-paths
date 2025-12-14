@@ -4,7 +4,6 @@ import globRex from 'globrex'
 import * as tsconfck from 'tsconfck'
 import { isAbsolute, join, relative } from 'node:path'
 import { inspect } from 'node:util'
-import { ViteDevServer } from 'vite'
 import * as vite from 'vite'
 import { debug } from './debug'
 import { resolvePathMappings } from './mappings'
@@ -30,7 +29,7 @@ const emptyDirectory: Directory = {
 
 export type { PluginOptions }
 
-export default (opts: PluginOptions = {}): vite.Plugin => {
+export default (opts: PluginOptions = {}) => {
   let projectRoot: NormalizedPath
   let workspaceRoot: NormalizedPath
   let hasTypeScriptDep: boolean
@@ -45,7 +44,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
     event: 'change' | 'unlink'
   ) => void
   let getResolvers: (importer: string) => AsyncIterable<Resolver>
-  let viteDevServer: ViteDevServer | undefined
+  let watcher: vite.FSWatcher | undefined
   let viteLogger: vite.Logger
   let directoryCache: Map<string, Directory>
   let resolversByProject: WeakMap<Project, Resolver>
@@ -62,10 +61,10 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       )
     : null
 
-  return {
+  const plugin = {
     name: 'vite-tsconfig-paths',
     enforce: 'pre',
-    configResolved(config) {
+    configResolved(config: Pick<vite.ResolvedConfig, 'logger' | 'root'>) {
       viteLogger = config.logger
 
       let { root } = opts
@@ -102,16 +101,18 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
 
       let isFirstParseError = true
 
-      const parseProject = (tsconfigFile: string): Promise<Project | null> => {
+      const parseProject = async (
+        tsconfigFile: string
+      ): Promise<Project | null> => {
         tsconfigFile = path.normalize(tsconfigFile)
 
-        const projectPromise = (
-          hasTypeScriptDep
-            ? tsconfck.parseNative(tsconfigFile)
-            : tsconfck.parse(tsconfigFile)
-        ) as Promise<Project>
-
-        return projectPromise.catch((error) => {
+        try {
+          return (
+            hasTypeScriptDep
+              ? await tsconfck.parseNative(tsconfigFile)
+              : await tsconfck.parse(tsconfigFile)
+          ) as Project
+        } catch (error: any) {
           if (opts.ignoreConfigErrors) {
             debug('[!] Failed to parse tsconfig file at %s', tsconfigFile)
             if (isFirstParseError) {
@@ -133,7 +134,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
           }
           isFirstParseError = false
           return null
-        })
+        }
       }
 
       const addProject = (project: Project, data?: Directory) => {
@@ -146,11 +147,10 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
           return
         }
 
-        if (viteDevServer) {
-          const { watcher } = viteDevServer
+        if (watcher) {
           watcher.add(tsconfigFile)
           project.extended?.forEach((parent) => {
-            watcher.add(parent.tsconfigFile)
+            watcher!.add(parent.tsconfigFile)
           })
         }
 
@@ -184,7 +184,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
           addProject(project, data)
         } else {
           // Try again if the file changes.
-          viteDevServer?.watcher.add(tsconfigFile)
+          watcher?.add(tsconfigFile)
         }
       }
 
@@ -336,8 +336,8 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         }
       }
     },
-    configureServer(server) {
-      viteDevServer = server
+    configureServer(server: Pick<vite.ViteDevServer, 'watcher'>) {
+      watcher = server.watcher
 
       server.watcher.on('all', (event, file) => {
         const normalizedFile = path.normalize(file)
@@ -363,7 +363,12 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         }
       })
     },
-    async resolveId(id, importer, options) {
+    async resolveId(
+      this: Pick<vite.Rollup.PluginContext, 'resolve'>,
+      id: string,
+      importer: string | undefined,
+      options: {}
+    ) {
       if (!importer) {
         logFile?.write('emptyImporter', { importer, id })
         return
@@ -420,7 +425,9 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         }
       }
     },
-  }
+  } as const
+
+  return plugin satisfies vite.Plugin
 
   function resolvePathsRootDir(project: Project): string {
     if (project.result) {
