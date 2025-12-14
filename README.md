@@ -14,10 +14,9 @@
 Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 
 [`vite`]: https://github.com/vitejs/vite
-→ [GitHub Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases)
 
 > [!NOTE]
-> **New in v6** – On-demand tsconfig discovery with `projectDiscovery: "lazy"`, automatic tsconfig reloads (including `vite build --watch`), support for “absolute path” aliases, and a new `logFile` option for detailed resolution traces. See the [GitHub Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases) for the full changelog.
+> **New in v6** – On-demand tsconfig discovery with `projectDiscovery: "lazy"`, automatic tsconfig reloads (including `vite build --watch`), support for “absolute path” aliases, and a new `logFile` option for detailed resolution traces. See the [Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases) page for the full changelog.
 
 ## Install
 
