@@ -181,3 +181,8 @@ DEBUG=vite-tsconfig-paths yarn vite
 ```
 
 Also, check out the [Troubleshooting](https://github.com/aleclarson/vite-tsconfig-paths/wiki/Troubleshooting) wiki page for more guidance.
+
+## You Might Like
+
+- [vite-multi-spa](https://github.com/aleclarson/vite-multi-spa) - Enable every `.html` in `src/pages` behave like its own SPA entry during dev and build.
+- [vite-plugin-marked](https://github.com/aleclarson/vite-plugin-marked) - Transform your `.md` imports into HTML strings.
