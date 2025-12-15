@@ -43,7 +43,8 @@ export default (opts: PluginOptions = {}) => {
     name: string,
     event: 'change' | 'unlink'
   ) => void
-  let getResolvers: (importer: string) => AsyncIterable<Resolver>
+  let getResolvers: (importer: string) => AsyncIterable<Resolver> =
+    async function* () {}
   let watcher: vite.FSWatcher | undefined
   let viteLogger: vite.Logger
   let directoryCache: Map<string, Directory>
