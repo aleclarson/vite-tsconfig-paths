@@ -11,7 +11,7 @@ const fixturesDir = join(__dirname, '__fixtures__')
 for (const name of readdirSync(fixturesDir)) {
   const fixtureDir = join(fixturesDir, name)
 
-  test.concurrent(name, async () => {
+  test(name, async () => {
     const config = readTestConfig(fixtureDir)
 
     await Promise.all([expectTscToSucceed(config), expectViteToSucceed(config)])
