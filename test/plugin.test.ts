@@ -39,7 +39,7 @@ async function expectViteToSucceed(config: TestConfig) {
     vite.build({
       configFile: false,
       root: config.root,
-      plugins: [tsconfigPaths(config.options)],
+      plugins: [debugResolve(), tsconfigPaths(config.options)],
       logLevel: 'error',
       build: {
         lib: {
@@ -49,6 +49,27 @@ async function expectViteToSucceed(config: TestConfig) {
       },
     })
   ).resolves.not.toThrow()
+}
+
+function debugResolve(): vite.Plugin {
+  return {
+    name: 'debug-resolve',
+    enforce: 'pre',
+    async resolveId(source, importer) {
+      const resolved = await this.resolve(source, importer, { skipSelf: true })
+      if (!resolved) {
+        console.log('[FAILED] %O\n  from %O', source, importer)
+      } else if (resolved.resolvedBy !== 'vite:resolve') {
+        console.log(
+          '[SUCCESS] %O\n  from %O\n    => %O',
+          source,
+          importer,
+          resolved.id
+        )
+      }
+      return null
+    },
+  }
 }
 
 type TestConfig = ReturnType<typeof readTestConfig>
