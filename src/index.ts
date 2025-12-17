@@ -140,7 +140,7 @@ export default (opts: PluginOptions = {}) => {
 
       const addProject = (project: Project, data?: Directory) => {
         const tsconfigFile = project.tsconfigFile
-        const dir = path.dirname(tsconfigFile)
+        const dir = path.normalize(path.dirname(tsconfigFile))
         data ??= directoryCache.get(dir)
 
         // Sanity check
@@ -553,7 +553,7 @@ export default (opts: PluginOptions = {}) => {
       return null
     }
 
-    const configDir = path.dirname(configPath)
+    const configDir = path.normalize(path.dirname(configPath))
 
     let outDir =
       compilerOptions.outDir && path.normalize(compilerOptions.outDir)
