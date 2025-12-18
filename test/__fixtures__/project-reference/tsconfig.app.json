@@ -1,0 +1,13 @@
+{
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "composite": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "rootDir": ".",
+    "paths": {
+      "~/*": ["./*"]
+    }
+  }
+}
