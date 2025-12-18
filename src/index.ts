@@ -49,6 +49,7 @@ export default (opts: PluginOptions = {}) => {
   let viteLogger: vite.Logger
   let directoryCache: Map<string, Directory>
   let resolversByProject: WeakMap<Project, Resolver>
+  let initPromise: Promise<void> | null = null
 
   const configNames = opts.configNames || ['tsconfig.json', 'jsconfig.json']
   debug(
@@ -95,252 +96,13 @@ export default (opts: PluginOptions = {}) => {
           }
         }
       }
+
+      // Start initialization early so it's ready for optimizeDeps scan
+      initPromise = initializeResolvers()
     },
     async buildStart() {
-      directoryCache = new Map()
-      resolversByProject = new WeakMap()
-
-      let isFirstParseError = true
-
-      const parseProject = async (
-        tsconfigFile: string
-      ): Promise<Project | null> => {
-        tsconfigFile = path.normalize(tsconfigFile)
-
-        try {
-          return (
-            hasTypeScriptDep
-              ? await tsconfck.parseNative(tsconfigFile)
-              : await tsconfck.parse(tsconfigFile)
-          ) as Project
-        } catch (error: any) {
-          if (opts.ignoreConfigErrors) {
-            debug('[!] Failed to parse tsconfig file at %s', tsconfigFile)
-            if (isFirstParseError) {
-              debug('Remove the `ignoreConfigErrors` option to see the error.')
-            }
-          } else {
-            viteLogger.error(
-              '[tsconfig-paths] An error occurred while parsing "' +
-                tsconfigFile +
-                '". See below for details.' +
-                (isFirstParseError
-                  ? ' To disable this message, set the `ignoreConfigErrors` option to true.'
-                  : ''),
-              { error }
-            )
-            if (!viteLogger.hasErrorLogged(error)) {
-              console.error(error)
-            }
-          }
-          isFirstParseError = false
-          return null
-        }
-      }
-
-      const addProject = (project: Project, data?: Directory) => {
-        const tsconfigFile = project.tsconfigFile
-        const dir = path.normalize(path.dirname(tsconfigFile))
-        data ??= directoryCache.get(dir)
-
-        // Sanity check
-        if (data?.projects.some((p) => p.tsconfigFile === tsconfigFile)) {
-          return
-        }
-
-        if (watcher) {
-          watcher.add(tsconfigFile)
-          project.extended?.forEach((parent) => {
-            watcher!.add(parent.tsconfigFile)
-          })
-        }
-
-        // Referenced projects must be added first, so they can override
-        // the parent project's paths if both are in the same directory.
-        if (project.referenced) {
-          project.referenced.forEach((projectRef) => {
-            addProject(projectRef)
-          })
-          // Ensure the latest directory data is used. One of the project
-          // references may have updated it.
-          data = directoryCache.get(dir)
-        }
-
-        const resolver = createResolver(project)
-        if (resolver) {
-          resolversByProject.set(project, resolver)
-        }
-
-        if (!data || data === emptyDirectory) {
-          directoryCache.set(
-            dir,
-            (data = {
-              projects: [],
-              lazyDiscovery: null,
-            })
-          )
-        }
-
-        data.projects.push(project)
-      }
-
-      const loadProject = async (tsconfigFile: string, data?: Directory) => {
-        const project = await parseProject(tsconfigFile)
-        if (project) {
-          addProject(project, data)
-        } else {
-          // Try again if the file changes.
-          watcher?.add(tsconfigFile)
-        }
-      }
-
-      // Ensure a deterministic order.
-      const sortProjects = (projects: Project[]) => {
-        projects.sort((left, right) =>
-          left.tsconfigFile.localeCompare(right.tsconfigFile)
-        )
-      }
-
-      processConfigFile = async (dir, name, data = directoryCache.get(dir)) => {
-        if (!data) {
-          return // Wait to be loaded on-demand.
-        }
-        const file = path.join(dir, name as NormalizedPath)
-        if (data.projects.some((p) => p.tsconfigFile === file)) {
-          return
-        }
-        await loadProject(file, data)
-      }
-
-      invalidateConfigFile = (dir, name, event) => {
-        const data = directoryCache.get(dir)
-        if (!data) {
-          return
-        }
-        const file = path.join(dir, name as NormalizedPath)
-        const index = data.projects.findIndex(
-          (project) => project.tsconfigFile === file
-        )
-        if (index !== -1) {
-          const project = data.projects[index]
-          debug(
-            `Unloading project because of ${event} event:`,
-            project.tsconfigFile
-          )
-
-          resolversByProject.delete(project)
-          data.projects.splice(index, 1)
-
-          if (event === 'change') {
-            if (opts.projectDiscovery === 'lazy') {
-              data.lazyDiscovery = null
-            } else {
-              loadProject(project.tsconfigFile, data)
-                .then(() => {
-                  sortProjects(data.projects)
-                })
-                .catch(console.error)
-            }
-          }
-        }
-      }
-
-      const shouldSkipDir = (dir: string) => {
-        if (dir === '.git' || dir === 'node_modules') {
-          return true
-        }
-        if (typeof opts.skip === 'function') {
-          return opts.skip(dir)
-        }
-        return false
-      }
-
-      if (opts.projects || opts.projectDiscovery !== 'lazy') {
-        const projectPaths =
-          opts.projects?.map((file) => {
-            if (!file.endsWith('.json')) {
-              file = join(file, 'tsconfig.json')
-            }
-            return path.resolve(projectRoot, file)
-          }) ??
-          (await tsconfck.findAll(workspaceRoot, {
-            configNames,
-            skip: shouldSkipDir,
-          }))
-
-        debug('Eagerly parsing these projects:', projectPaths)
-
-        await Promise.all(
-          Array.from(new Set(projectPaths), (p) => loadProject(p))
-        )
-        for (const data of directoryCache.values()) {
-          sortProjects(data.projects)
-        }
-      }
-
-      // Only used when projectDiscovery is 'lazy'.
-      const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
-        debug('Searching directory for tsconfig files:', dir)
-        const names = await readdir(dir).catch(() => [])
-
-        await Promise.all(
-          names
-            .filter((name) => configNames.includes(name))
-            .map((name) => {
-              return processConfigFile(dir, name, data)
-            })
-        )
-
-        if (data.projects.length) {
-          sortProjects(data.projects)
-          if (debug.enabled) {
-            debug(
-              `Directory "${dir}" contains the following tsconfig files:`,
-              data.projects.map((p) => path.basename(p.tsconfigFile))
-            )
-          }
-        } else {
-          // No projects found. Reduce memory usage with a stand-in.
-          directoryCache.set(dir, emptyDirectory)
-          debug('No tsconfig files found in directory:', dir)
-        }
-      }
-
-      getResolvers = async function* (importer) {
-        let dir = path.normalize(importer)
-
-        const { root } = path.parse(dir)
-
-        while (dir !== (dir = path.dirname(dir)) && dir !== root) {
-          let data = directoryCache.get(dir)
-
-          if (opts.projectDiscovery === 'lazy') {
-            if (!data) {
-              if (shouldSkipDir(path.basename(dir))) {
-                directoryCache.set(dir, emptyDirectory)
-                continue
-              }
-              directoryCache.set(
-                dir,
-                (data = {
-                  projects: [],
-                  lazyDiscovery: null,
-                })
-              )
-            }
-            await (data.lazyDiscovery ??= discoverProjects(dir, data))
-          } else if (!data) {
-            continue
-          }
-
-          for (const project of data.projects) {
-            const resolver = resolversByProject.get(project)
-            if (resolver) {
-              yield resolver
-            }
-          }
-        }
-      }
+      // Wait for initialization started in configResolved
+      await initPromise
     },
     configureServer(server: Pick<vite.ViteDevServer, 'watcher'>) {
       watcher = server.watcher
@@ -375,6 +137,9 @@ export default (opts: PluginOptions = {}) => {
       importer: string | undefined,
       options: {}
     ) {
+      // Wait for initialization if not yet complete
+      await initPromise
+
       if (!importer) {
         logFile?.write('emptyImporter', { importer, id })
         return
@@ -434,6 +199,253 @@ export default (opts: PluginOptions = {}) => {
   } as const
 
   return plugin satisfies vite.Plugin
+
+  async function initializeResolvers() {
+    directoryCache = new Map()
+    resolversByProject = new WeakMap()
+
+    let isFirstParseError = true
+
+    const parseProject = async (
+      tsconfigFile: string
+    ): Promise<Project | null> => {
+      tsconfigFile = path.normalize(tsconfigFile)
+
+      try {
+        return (
+          hasTypeScriptDep
+            ? await tsconfck.parseNative(tsconfigFile)
+            : await tsconfck.parse(tsconfigFile)
+        ) as Project
+      } catch (error: any) {
+        if (opts.ignoreConfigErrors) {
+          debug('[!] Failed to parse tsconfig file at %s', tsconfigFile)
+          if (isFirstParseError) {
+            debug('Remove the `ignoreConfigErrors` option to see the error.')
+          }
+        } else {
+          viteLogger.error(
+            '[tsconfig-paths] An error occurred while parsing "' +
+              tsconfigFile +
+              '". See below for details.' +
+              (isFirstParseError
+                ? ' To disable this message, set the `ignoreConfigErrors` option to true.'
+                : ''),
+            { error }
+          )
+          if (!viteLogger.hasErrorLogged(error)) {
+            console.error(error)
+          }
+        }
+        isFirstParseError = false
+        return null
+      }
+    }
+
+    const addProject = (project: Project, data?: Directory) => {
+      const tsconfigFile = project.tsconfigFile
+      const dir = path.normalize(path.dirname(tsconfigFile))
+      data ??= directoryCache.get(dir)
+
+      // Sanity check
+      if (data?.projects.some((p) => p.tsconfigFile === tsconfigFile)) {
+        return
+      }
+
+      if (watcher) {
+        watcher.add(tsconfigFile)
+        project.extended?.forEach((parent) => {
+          watcher!.add(parent.tsconfigFile)
+        })
+      }
+
+      // Referenced projects must be added first, so they can override
+      // the parent project's paths if both are in the same directory.
+      if (project.referenced) {
+        project.referenced.forEach((projectRef) => {
+          addProject(projectRef)
+        })
+        // Ensure the latest directory data is used. One of the project
+        // references may have updated it.
+        data = directoryCache.get(dir)
+      }
+
+      const resolver = createResolver(project)
+      if (resolver) {
+        resolversByProject.set(project, resolver)
+      }
+
+      if (!data || data === emptyDirectory) {
+        directoryCache.set(
+          dir,
+          (data = {
+            projects: [],
+            lazyDiscovery: null,
+          })
+        )
+      }
+
+      data.projects.push(project)
+    }
+
+    const loadProject = async (tsconfigFile: string, data?: Directory) => {
+      const project = await parseProject(tsconfigFile)
+      if (project) {
+        addProject(project, data)
+      } else {
+        // Try again if the file changes.
+        watcher?.add(tsconfigFile)
+      }
+    }
+
+    // Ensure a deterministic order.
+    const sortProjects = (projects: Project[]) => {
+      projects.sort((left, right) =>
+        left.tsconfigFile.localeCompare(right.tsconfigFile)
+      )
+    }
+
+    processConfigFile = async (dir, name, data = directoryCache.get(dir)) => {
+      if (!data) {
+        return // Wait to be loaded on-demand.
+      }
+      const file = path.join(dir, name as NormalizedPath)
+      if (data.projects.some((p) => p.tsconfigFile === file)) {
+        return
+      }
+      await loadProject(file, data)
+    }
+
+    invalidateConfigFile = (dir, name, event) => {
+      const data = directoryCache.get(dir)
+      if (!data) {
+        return
+      }
+      const file = path.join(dir, name as NormalizedPath)
+      const index = data.projects.findIndex(
+        (project) => project.tsconfigFile === file
+      )
+      if (index !== -1) {
+        const project = data.projects[index]
+        debug(
+          `Unloading project because of ${event} event:`,
+          project.tsconfigFile
+        )
+
+        resolversByProject.delete(project)
+        data.projects.splice(index, 1)
+
+        if (event === 'change') {
+          if (opts.projectDiscovery === 'lazy') {
+            data.lazyDiscovery = null
+          } else {
+            loadProject(project.tsconfigFile, data)
+              .then(() => {
+                sortProjects(data.projects)
+              })
+              .catch(console.error)
+          }
+        }
+      }
+    }
+
+    const shouldSkipDir = (dir: string) => {
+      if (dir === '.git' || dir === 'node_modules') {
+        return true
+      }
+      if (typeof opts.skip === 'function') {
+        return opts.skip(dir)
+      }
+      return false
+    }
+
+    if (opts.projects || opts.projectDiscovery !== 'lazy') {
+      const projectPaths =
+        opts.projects?.map((file) => {
+          if (!file.endsWith('.json')) {
+            file = join(file, 'tsconfig.json')
+          }
+          return path.resolve(projectRoot, file)
+        }) ??
+        (await tsconfck.findAll(workspaceRoot, {
+          configNames,
+          skip: shouldSkipDir,
+        }))
+
+      debug('Eagerly parsing these projects:', projectPaths)
+
+      await Promise.all(
+        Array.from(new Set(projectPaths), (p) => loadProject(p))
+      )
+      for (const data of directoryCache.values()) {
+        sortProjects(data.projects)
+      }
+    }
+
+    // Only used when projectDiscovery is 'lazy'.
+    const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
+      debug('Searching directory for tsconfig files:', dir)
+      const names = await readdir(dir).catch(() => [])
+
+      await Promise.all(
+        names
+          .filter((name) => configNames.includes(name))
+          .map((name) => {
+            return processConfigFile(dir, name, data)
+          })
+      )
+
+      if (data.projects.length) {
+        sortProjects(data.projects)
+        if (debug.enabled) {
+          debug(
+            `Directory "${dir}" contains the following tsconfig files:`,
+            data.projects.map((p) => path.basename(p.tsconfigFile))
+          )
+        }
+      } else {
+        // No projects found. Reduce memory usage with a stand-in.
+        directoryCache.set(dir, emptyDirectory)
+        debug('No tsconfig files found in directory:', dir)
+      }
+    }
+
+    getResolvers = async function* (importer) {
+      let dir = path.normalize(importer)
+
+      const { root } = path.parse(dir)
+
+      while (dir !== (dir = path.dirname(dir)) && dir !== root) {
+        let data = directoryCache.get(dir)
+
+        if (opts.projectDiscovery === 'lazy') {
+          if (!data) {
+            if (shouldSkipDir(path.basename(dir))) {
+              directoryCache.set(dir, emptyDirectory)
+              continue
+            }
+            directoryCache.set(
+              dir,
+              (data = {
+                projects: [],
+                lazyDiscovery: null,
+              })
+            )
+          }
+          await (data.lazyDiscovery ??= discoverProjects(dir, data))
+        } else if (!data) {
+          continue
+        }
+
+        for (const project of data.projects) {
+          const resolver = resolversByProject.get(project)
+          if (resolver) {
+            yield resolver
+          }
+        }
+      }
+    }
+  }
 
   function resolvePathsRootDir(project: Project): string {
     if (project.result) {
