@@ -157,9 +157,14 @@ export default (opts: PluginOptions = {}) => {
 
         // Referenced projects must be added first, so they can override
         // the parent project's paths if both are in the same directory.
-        project.referenced?.forEach((projectRef) => {
-          addProject(projectRef)
-        })
+        if (project.referenced) {
+          project.referenced.forEach((projectRef) => {
+            addProject(projectRef)
+          })
+          // Ensure the latest directory data is used. One of the project
+          // references may have updated it.
+          data = directoryCache.get(dir)
+        }
 
         const resolver = createResolver(project)
         if (resolver) {
