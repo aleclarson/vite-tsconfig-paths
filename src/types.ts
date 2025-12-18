@@ -95,6 +95,19 @@ export interface PluginOptions {
    * A file to write detailed logs of the resolver process.
    */
   logFile?: string | boolean
+
+  /**
+   * A regular expression used to determine which modules are permitted to act
+   * as importers during path resolution.
+   *
+   * When defined, only importers whose absolute file path matches this
+   * expression will be considered eligible. This is useful for restricting
+   * resolution behavior to specific directories, file patterns, or workspace
+   * segments in large projects.
+   *
+   * If unspecified, all importers are allowed by default.
+   */
+  allowImporterRe?: RegExp
 }
 
 type Merge<T, U> = Omit<T, keyof U> & U

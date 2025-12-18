@@ -577,6 +577,8 @@ export default (opts: PluginOptions = {}) => {
 
     const importerExtRE = opts.loose
       ? /$/
+      : opts.allowImporterRe
+      ? opts.allowImporterRe
       : compilerOptions.allowJs ||
         path.basename(configPath).startsWith('jsconfig.')
       ? /\.(astro|mdx|svelte|vue|[mc]?[jt]sx?)$/
