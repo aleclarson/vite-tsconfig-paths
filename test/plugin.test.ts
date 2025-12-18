@@ -19,14 +19,24 @@ for (const name of readdirSync(fixturesDir)) {
 }
 
 async function expectTscToSucceed(config: TestConfig) {
-  const { exitCode, signal, stderr } = await execa(
+  const { exitCode, signal, stdout, stderr } = await execa(
     tscBinPath,
-    ['-p', '.', '--declaration', '--emitDeclarationOnly', '--outDir', 'dist'],
+    [
+      '-p',
+      config.tsconfig ?? '.',
+      '--declaration',
+      '--emitDeclarationOnly',
+      '--outDir',
+      'dist',
+    ],
     {
       cwd: config.root,
       reject: false,
     }
   )
+  if (stdout) {
+    console.log(stdout)
+  }
   expect({ exitCode, signal, stderr }).toEqual({
     exitCode: 0,
     signal: undefined,
@@ -78,6 +88,8 @@ function readTestConfig(fixtureDir: string) {
   let config: {
     /** Vite project root */
     root?: string
+    /** Which tsconfig file to use for declaration emit */
+    tsconfig?: string
     /** Plugin options */
     options?: PluginOptions
   }
