@@ -184,3 +184,4 @@ Also, check out the [Troubleshooting](https://github.com/aleclarson/vite-tsconfi
 
 - [vite-multi-spa](https://github.com/aleclarson/vite-multi-spa) - Enable every `.html` in `src/pages` to behave like its own SPA entry during dev and build.
 - [vite-plugin-marked](https://github.com/aleclarson/vite-plugin-marked) - Transform your `.md` imports into HTML strings.
+- [vite-postgres](https://github.com/aleclarson/vite-postgres) - Run a Postgres instance with your Vite dev server.
