@@ -46,3 +46,5 @@ export function createLogFile(logFilePath: string) {
     },
   }
 }
+
+export type LogFileWriter = ReturnType<typeof createLogFile>

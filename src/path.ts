@@ -46,3 +46,5 @@ export const basename = path.posix.basename as (
 
 /** Only call this on normalized paths */
 export const dirname = path.dirname as (p: NormalizedPath) => NormalizedPath
+
+export const relativeImportRE = /^\.\.?(\/|$)/
