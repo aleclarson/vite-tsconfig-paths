@@ -117,6 +117,10 @@ Disable strictness that limits path resolution to TypeScript and JavaScript impo
 
 For example, this is useful if you want imports in Vue templates to be resolved, but don't want to use `allowJs` in your tsconfig.
 
+#### `importerFilter: (importer: string) => boolean`
+
+Fine-grained control over which files should have their imports resolved by this plugin. This has no effect when `loose` is true.
+
 #### `parseNative: boolean`
 
 Enable use of the [`tsconfck.parseNative`](https://github.com/dominikg/tsconfck/blob/main/docs/api.md#parsenative) function, which delegates the loading of tsconfig files to the TypeScript compiler. You'll probably never need this, but I added it just in case.
@@ -148,7 +152,7 @@ While `.git` and `node_modules` directories are always skipped, this option allo
 
 If your tsconfig file has `"allowJs": true` in it, path resolution will be expanded beyond TypeScript importers. The following extensions will have their imports resolved by this plugin: `.astro`, `.vue`, `.svelte`, `.mdx`, `.mjs`, `.js`, `.jsx`
 
-If you believe another file extension should be supported by default, please open an issue or pull request.
+If you believe another file extension should be supported by default, please open an issue or pull request. Otherwise, you can use the `importerFilter` plugin option to support any extension you like.
 
 &nbsp;
 
