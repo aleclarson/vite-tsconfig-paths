@@ -556,6 +556,12 @@ function createResolver(
     // tsconfig file is being used for opt-in type overrides. This is an
     // unusual pattern, but we can just stop here to avoid trouble.
     if (dtsPattern.test(resolvedId)) {
+      logFile?.write('resolvedToDeclarationFile', {
+        importer,
+        id,
+        resolvedId,
+        configPath,
+      })
       return notApplicable
     }
 

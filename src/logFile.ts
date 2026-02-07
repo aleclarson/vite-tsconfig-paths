@@ -12,6 +12,7 @@ export type LogEvent =
   | ['unsupportedExtension', ImportDetails]
   | ['relativeId', ImportDetails]
   | ['virtualId', ImportDetails]
+  | ['resolvedToDeclarationFile', ResolveDetails]
   | ['resolvedWithBaseUrl', ResolveDetails]
   | ['resolvedWithPaths', ResolveDetails]
   | ['resolvedFromCache', ResolveDetails]
