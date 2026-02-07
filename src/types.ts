@@ -38,6 +38,11 @@ export interface PluginOptions {
    */
   loose?: boolean
   /**
+   * Fine-grained control over which files should have their imports
+   * resolved by this plugin. This has no effect when `loose` is true.
+   */
+  importerFilter?: (importer: string) => boolean
+  /**
    * Enable use of `tsconfck.parseNative` function, which delegates the
    * loading of `tsconfig.json` files to the TypeScript compiler. You'll
    * probably never need this, but I added it just in case.

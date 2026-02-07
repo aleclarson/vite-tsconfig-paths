@@ -363,9 +363,14 @@ export function createTsconfigResolvers({
   }
 }
 
+type ResolverOptions = {
+  loose?: boolean
+  importerFilter?: (importer: string) => boolean
+}
+
 function createResolver(
   project: Project,
-  opts: { loose?: boolean },
+  opts: ResolverOptions,
   logFile?: LogFileWriter | null
 ): Resolver | null {
   const configPath = project.tsconfigFile
@@ -488,12 +493,18 @@ function createResolver(
     outDir
   )
 
-  const importerExtRE = opts.loose
-    ? /$/
-    : compilerOptions.allowJs ||
-      path.basename(configPath).startsWith('jsconfig.')
-    ? /\.(astro|mdx|svelte|vue|[mc]?[jt]sx?)$/
-    : /\.[mc]?tsx?$/
+  const isImporterSupported = opts.loose
+    ? () => true
+    : opts.importerFilter ??
+      (() => {
+        const extensionFilter =
+          compilerOptions.allowJs ||
+          path.basename(configPath).startsWith('jsconfig.')
+            ? /\.(astro|mdx|svelte|vue|[mc]?[jt]sx?)$/
+            : /\.[mc]?tsx?$/
+
+        return (importer: string) => extensionFilter.test(importer)
+      })()
 
   const resolutionCache = new Map<string, string>()
 
@@ -501,8 +512,8 @@ function createResolver(
     // Remove query and hash parameters from the importer path.
     const importerFile = path.normalize(importer.replace(/[#?].+$/, ''))
 
-    // Ignore importers with unsupported extensions.
-    if (!importerExtRE.test(importerFile)) {
+    // Skip unsupported importers.
+    if (!isImporterSupported(importerFile)) {
       logFile?.write('unsupportedExtension', { importer, id })
       return notApplicable
     }
