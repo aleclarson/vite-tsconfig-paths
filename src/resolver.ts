@@ -508,9 +508,12 @@ function createResolver(
 
   const resolutionCache = new Map<string, string>()
 
+  const hashQueryPattern = /[#?].+$/
+  const queryPattern = /\?.+$/
+
   return async (viteResolve, id, importer) => {
     // Remove query and hash parameters from the importer path.
-    const importerFile = path.normalize(importer.replace(/[#?].+$/, ''))
+    const importerFile = path.normalize(importer.replace(hashQueryPattern, ''))
 
     // Skip unsupported importers.
     if (!isImporterSupported(importerFile)) {
@@ -525,11 +528,11 @@ function createResolver(
       return notApplicable
     }
 
-    // Find and remove Vite's suffix (e.g. "?url") if present.
-    // If the path is resolved, the suffix will be added back.
-    const suffix = /\?.+$/.exec(id)?.[0]
-    if (suffix) {
-      id = id.slice(0, -suffix.length)
+    // Find and remove special Vite queries (e.g. "?url") if present. If
+    // the path is resolved, the query will be added back.
+    const query = queryPattern.exec(id)?.[0]
+    if (query) {
+      id = id.slice(0, -query.length)
     }
 
     let resolvedId = resolutionCache.get(id)
@@ -548,9 +551,9 @@ function createResolver(
       resolutionCache.set(id, resolvedId)
     }
 
-    // Restore the suffix if one was removed earlier.
-    if (suffix) {
-      resolvedId += suffix
+    // Restore the query if one was removed earlier.
+    if (query) {
+      resolvedId += query
     }
 
     return [resolvedId, true]
