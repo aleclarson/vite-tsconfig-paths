@@ -510,6 +510,7 @@ function createResolver(
 
   const hashQueryPattern = /[#?].+$/
   const queryPattern = /\?.+$/
+  const dtsPattern = /\.d\.ts(\?|$)/
 
   return async (viteResolve, id, importer) => {
     // Remove query and hash parameters from the importer path.
@@ -549,6 +550,13 @@ function createResolver(
         return notFound
       }
       resolutionCache.set(id, resolvedId)
+    }
+
+    // If we get a .d.ts file (ambient type declarations), it's because a
+    // tsconfig file is being used for opt-in type overrides. This is an
+    // unusual pattern, but we can just stop here to avoid trouble.
+    if (dtsPattern.test(resolvedId)) {
+      return notApplicable
     }
 
     // Restore the query if one was removed earlier.
