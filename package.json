@@ -32,6 +32,7 @@
     "esbuild": "^0.11.12",
     "execa": "^9.5.1",
     "klona": "^2.0.4",
+    "placeholder": "link:packages/placeholder",
     "prettier": "^2.8.7",
     "rimraf": "^6.1.2",
     "rollup": "^2.45.2",
