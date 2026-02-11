@@ -406,6 +406,9 @@ function createResolver(
         const absoluteId = join(baseUrl, id)
         const resolvedId = await viteResolve(absoluteId, importer)
         if (resolvedId) {
+          if (resolvedId.endsWith('.json') && !id.endsWith('.json')) {
+            return
+          }
           logFile?.write('resolvedWithBaseUrl', {
             importer,
             id,
