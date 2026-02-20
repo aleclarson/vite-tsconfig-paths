@@ -113,12 +113,12 @@ export function createTsconfigResolvers({
   let onParseError: ((tsconfigFile: string) => void) | undefined
 
   const addProject = (project: Project, data?: Directory) => {
-    const tsconfigFile = project.tsconfigFile
-    const dir = path.normalize(path.dirname(tsconfigFile))
+    const tsconfigFileNormalized = path.normalize(project.tsconfigFile)
+    const dir = path.normalize(path.dirname(tsconfigFileNormalized))
     data ??= directoryCache.get(dir)
 
     // Sanity check
-    if (data?.projects.some((p) => p.tsconfigFile === tsconfigFile)) {
+    if (data?.projects.some((p) => path.normalize(p.tsconfigFile) === tsconfigFileNormalized)) {
       return
     }
 
