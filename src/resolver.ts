@@ -400,7 +400,7 @@ function createResolver(
 
   const resolveWithBaseUrl: InternalResolver | undefined = baseUrl
     ? async (viteResolve, id, importer) => {
-        if (id[0] === '/') {
+        if (path.isAbsolute(id)) {
           return
         }
         const absoluteId = join(baseUrl, id)
