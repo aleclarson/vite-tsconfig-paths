@@ -531,10 +531,11 @@ function createResolver(
       resolutionCache.set(id, resolvedId)
     }
 
-    // If we get a .d.ts file (ambient type declarations), it's because a
-    // tsconfig file is being used for opt-in type overrides. This is an
-    // unusual pattern, but we can just stop here to avoid trouble.
-    if (dtsPattern.test(resolvedId)) {
+    // If we get a .d.ts file that wasn't explicitly imported, it's because
+    // a tsconfig file is being used for opt-in type overrides. Skip these
+    // implicit .d.ts resolutions to avoid trouble, but allow explicit ones
+    // like `import "@common/global.d.ts"`.
+    if (dtsPattern.test(resolvedId) && !dtsPattern.test(id)) {
       logFile?.write('resolvedToDeclarationFile', {
         importer,
         id,
