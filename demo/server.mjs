@@ -13,7 +13,7 @@ export async function createServer() {
 
   app.use(vite.middlewares)
 
-  app.use('*', async (req, res, next) => {
+  app.use('/{*path}', async (req, res, _next) => {
     try {
       const { renderPage } = await vite.ssrLoadModule('/src/entry-server.tsx')
       res.status(200).end(renderPage())
@@ -34,4 +34,4 @@ async function init() {
   })
 }
 
-init()
+void init()

@@ -2,7 +2,8 @@
   "extends": "../tsconfig.json",
   "include": ["**/*.ts"],
   "compilerOptions": {
+    "lib": ["es2021"],
     "rootDir": ".",
-    "types": ["vitest/globals"]
+    "types": ["node"]
   }
 }
