@@ -20,7 +20,7 @@
     "clean": "rimraf dist",
     "dev": "pnpm bundle --watch",
     "build": "pnpm clean && pnpm bundle",
-    "bundle": "rolldown -c && tsx scripts/dts.ts",
+    "bundle": "rolldown -c && node --import tsx/esm scripts/dts.ts",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint src/",
     "prepare": "pnpm build",

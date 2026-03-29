@@ -1,3 +1,4 @@
+import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vite from 'vite'
@@ -46,5 +47,14 @@ export const basename = (p: NormalizedPath, suffix?: string): NormalizedPath =>
 /** Only call this on normalized paths */
 export const dirname = (p: NormalizedPath): NormalizedPath =>
   path.dirname(p) as NormalizedPath
+
+/** Resolve symlinks and normalize. Falls back to normalize on error. */
+export const realpath = (p: string): NormalizedPath => {
+  try {
+    return normalize(fs.realpathSync(p))
+  } catch {
+    return normalize(p)
+  }
+}
 
 export const relativeImportRE: RegExp = /^\.\.?(\/|$)/

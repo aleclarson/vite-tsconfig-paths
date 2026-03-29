@@ -1,0 +1,10 @@
+{
+  "exclude": ["dist"],
+  "include": ["src", "generated"],
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "rootDirs": ["./src", "./generated"]
+  }
+}

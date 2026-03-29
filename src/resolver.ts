@@ -111,7 +111,7 @@ export function createTsconfigResolvers({
 
   const addProject = (project: Project, data?: Directory) => {
     const tsconfigFile = project.tsconfigFile
-    const dir = path.normalize(path.dirname(tsconfigFile))
+    const dir = path.realpath(path.dirname(tsconfigFile))
     data ??= directoryCache.get(dir)
 
     // Sanity check
@@ -247,7 +247,7 @@ export function createTsconfigResolvers({
   ): AsyncIterable<Resolver> {
     await initializing
 
-    let dir = path.normalize(importer)
+    let dir = path.realpath(importer)
     const { root } = path.parse(dir)
     while (dir !== (dir = path.dirname(dir)) && dir !== root) {
       let data = directoryCache.get(dir)
@@ -292,7 +292,7 @@ export function createTsconfigResolvers({
       watcher.add(tsconfigFile)
     }
     watcher.on('all', (event, file) => {
-      const normalizedFile = path.normalize(file)
+      const normalizedFile = path.realpath(file)
       if (
         !normalizedFile.endsWith('.json') ||
         !path.isAbsolute(normalizedFile)
