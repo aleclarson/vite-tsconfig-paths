@@ -44,6 +44,7 @@ export function createTsconfigResolvers({
   let initializing: Promise<void> | undefined
   let directoryCache: Map<string, Directory>
   let resolversByProject: WeakMap<Project, Resolver>
+  let unrestrictedResolversByProject: WeakMap<Project, Resolver>
   let isFirstParseError = true
   let hasTypeScriptDep = false
 
@@ -126,6 +127,15 @@ export function createTsconfigResolvers({
     if (project.referenced) {
       project.referenced.forEach((projectRef) => {
         addProject(projectRef)
+        // Create an unrestricted resolver (no include/exclude check) for
+        // referenced projects, so importers outside the reference's include
+        // scope can still use its path aliases.
+        if (!unrestrictedResolversByProject.has(projectRef)) {
+          const unrestricted = createResolver(projectRef, opts, logFile, true)
+          if (unrestricted) {
+            unrestrictedResolversByProject.set(projectRef, unrestricted)
+          }
+        }
       })
       // Ensure the latest directory data is used. One of the project
       // references may have updated it.
@@ -211,6 +221,7 @@ export function createTsconfigResolvers({
   const resetResolvers = () => {
     directoryCache = new Map()
     resolversByProject = new WeakMap()
+    unrestrictedResolversByProject = new WeakMap()
     initializing = loadEagerProjects()
   }
 
@@ -275,6 +286,19 @@ export function createTsconfigResolvers({
         const resolver = resolversByProject.get(project)
         if (resolver) {
           yield resolver
+        }
+        // When a project uses references (e.g., Nuxt, shared config
+        // packages), the referenced configs may live in sibling
+        // directories that are never visited by this ancestor walk.
+        // Yield their unrestricted resolvers (no include/exclude check)
+        // so imports from any directory can use referenced path aliases.
+        if (project.referenced) {
+          for (const ref of project.referenced) {
+            const refResolver = unrestrictedResolversByProject.get(ref)
+            if (refResolver) {
+              yield refResolver
+            }
+          }
         }
       }
     }
@@ -368,7 +392,8 @@ type ResolverOptions = {
 function createResolver(
   project: Project,
   opts: ResolverOptions,
-  logFile?: LogFileWriter | null
+  logFile?: LogFileWriter | null,
+  skipIncludeCheck?: boolean
 ): Resolver | null {
   const configPath = project.tsconfigFile
   const config = project.tsconfig
@@ -467,11 +492,14 @@ function createResolver(
       return notApplicable
     }
 
-    // Respect the include/exclude properties.
-    const relativeImporterFile = path.relative(configDir, importerFile)
-    if (!isIncludedRelative(relativeImporterFile)) {
-      logFile?.write('configMismatch', { importer, id, configPath })
-      return notApplicable
+    // Respect the include/exclude properties (skipped for referenced
+    // project resolvers, since the parent project's scope applies).
+    if (!skipIncludeCheck) {
+      const relativeImporterFile = path.relative(configDir, importerFile)
+      if (!isIncludedRelative(relativeImporterFile)) {
+        logFile?.write('configMismatch', { importer, id, configPath })
+        return notApplicable
+      }
     }
 
     // Find and remove special Vite queries (e.g. "?url") if present. If
