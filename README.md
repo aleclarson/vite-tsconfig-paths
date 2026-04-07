@@ -127,7 +127,7 @@ Fine-grained control over which files should have their imports resolved by this
 
 #### `parseNative: boolean`
 
-Enable use of the [`tsconfck.parseNative`](https://github.com/dominikg/tsconfck/blob/main/docs/api.md#parsenative) function, which delegates the loading of tsconfig files to the TypeScript compiler. You'll probably never need this, but I added it just in case.
+Enable native tsconfig parsing via the TypeScript compiler. You'll probably never need this, but it exists for edge cases where TypeScript's own config loader is required.
 
 > [!WARNING]
 > This option can slow down Vite's startup time by as much as 600ms, due to the size of the TypeScript compiler. Only use it when necessary.

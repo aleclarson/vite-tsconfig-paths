@@ -18,6 +18,22 @@ for (const name of readdirSync(fixturesDir)) {
   })
 }
 
+test('parseNative supports extended configs', async () => {
+  const fixtureDir = join(fixturesDir, 'extends-paths')
+  const config = readTestConfig(fixtureDir)
+
+  await Promise.all([
+    expectTscToSucceed(config),
+    expectViteToSucceed({
+      ...config,
+      options: {
+        ...config.options,
+        parseNative: true,
+      },
+    }),
+  ])
+})
+
 async function expectTscToSucceed(config: TestConfig) {
   const { exitCode, signal, stdout, stderr } = await execa(
     tscBinPath,

@@ -1,14 +1,15 @@
 import * as fs from 'node:fs'
 import { readdir } from 'node:fs/promises'
-import { isAbsolute, join, relative } from 'node:path'
+import { join } from 'node:path'
 import { inspect } from 'node:util'
+import { createFilesMatcher } from 'get-tsconfig'
 import { ResolverFactory } from 'oxc-resolver'
-import * as tsconfck from 'tsconfck'
 import * as vite from 'vite'
 import { debug } from './debug'
 import { LogFileWriter } from './logFile'
 import type { NormalizedPath } from './path'
 import * as path from './path'
+import * as tsconfig from './tsconfig'
 import { Directory, PluginOptions, Project, Resolver } from './types'
 
 const notApplicable = [undefined, false] as const
@@ -77,8 +78,8 @@ export function createTsconfigResolvers({
     try {
       return (
         hasTypeScriptDep
-          ? await tsconfck.parseNative(tsconfigFile)
-          : await tsconfck.parse(tsconfigFile)
+          ? await tsconfig.parseNative(tsconfigFile)
+          : await tsconfig.parse(tsconfigFile)
       ) as Project
     } catch (error: any) {
       if (opts.ignoreConfigErrors) {
@@ -194,7 +195,7 @@ export function createTsconfigResolvers({
       if (opts.projectDiscovery === 'lazy') {
         return
       }
-      projectPaths = await tsconfck.findAll(workspaceRoot, {
+      projectPaths = await tsconfig.findAll(workspaceRoot, {
         configNames,
         skip,
       })
@@ -421,21 +422,10 @@ function createResolver(
     symlinks: true,
   })
 
-  const configDir = path.normalize(path.dirname(configPath))
-
-  let outDir = compilerOptions.outDir && path.normalize(compilerOptions.outDir)
-
-  // When `tsconfck.parseNative` is used, the outDir is absolute, which
-  // is not what `getIncluder` expects.
-  if (outDir && path.isAbsolute(outDir)) {
-    outDir = path.relative(configDir, outDir)
-  }
-
-  const isIncludedRelative = getIncluder(
-    config.include?.map((p) => ensureRelative(configDir, p)),
-    config.exclude?.map((p) => ensureRelative(configDir, p)),
-    outDir
-  )
+  const matchesFile = createFilesMatcher({
+    path: configPath,
+    config,
+  })
 
   const isImporterSupported = opts.loose
     ? () => true
@@ -468,8 +458,7 @@ function createResolver(
     }
 
     // Respect the include/exclude properties.
-    const relativeImporterFile = path.relative(configDir, importerFile)
-    if (!isIncludedRelative(relativeImporterFile)) {
+    if (!matchesFile(importerFile)) {
       logFile?.write('configMismatch', { importer, id, configPath })
       return notApplicable
     }
@@ -552,104 +541,4 @@ function createResolver(
 
     return [resolvedId, true]
   }
-}
-
-const defaultInclude = ['**/*']
-const defaultExclude = [
-  '**/node_modules',
-  '**/bower_components',
-  '**/jspm_packages',
-]
-
-/**
- * The returned function does not support absolute paths.
- * Be sure to call `path.relative` on your path first.
- */
-function getIncluder(
-  includePaths = defaultInclude,
-  excludePaths = defaultExclude,
-  outDir?: string
-) {
-  if (outDir) {
-    excludePaths = excludePaths.concat(outDir)
-  }
-  if (includePaths.length || excludePaths.length) {
-    const includers: RegExp[] = []
-    const excluders: RegExp[] = []
-
-    includePaths.forEach(addCompiledGlob, includers)
-    excludePaths.forEach(addCompiledGlob, excluders)
-
-    if (debug.enabled) {
-      debug(`Compiled tsconfig globs:`, {
-        include: {
-          globs: includePaths,
-          regexes: includers,
-        },
-        exclude: {
-          globs: excludePaths,
-          regexes: excluders,
-        },
-      })
-    }
-
-    return (id: string) => {
-      id = id.replace(/\?.+$/, '')
-      if (!path.relativeImportRE.test(id)) {
-        id = './' + id
-      }
-      const test = (glob: RegExp) => glob.test(id)
-      return includers.some(test) && !excluders.some(test)
-    }
-  }
-  return () => true
-}
-
-function addCompiledGlob(this: RegExp[], glob: string) {
-  const endsWithGlob = glob.split('/').pop()!.includes('*')
-  const relativeGlob = path.relativeImportRE.test(glob) ? glob : './' + glob
-  if (endsWithGlob) {
-    this.push(compileGlob(relativeGlob))
-  } else {
-    // Append a globstar to possible directories.
-    this.push(compileGlob(relativeGlob + '/**'))
-
-    // Try to match specific files (must have file extension).
-    if (/\.\w+$/.test(glob)) {
-      this.push(compileGlob(relativeGlob))
-    }
-  }
-}
-
-function compileGlob(glob: string): RegExp {
-  // Normalize consecutive slashes (e.g. "./" + "/**" → ".//***" → "./**")
-  glob = glob.replace(/\/{2,}/g, '/')
-  let result = ''
-  for (let i = 0; i < glob.length; i++) {
-    const char = glob[i]
-    if (char === '*') {
-      if (glob[i + 1] === '*') {
-        if (glob[i + 2] === '/') {
-          result += '(?:.+/)?'
-          i += 2
-        } else {
-          result += '.*'
-          i += 1
-        }
-      } else {
-        result += '[^/]*'
-      }
-    } else if (char === '?') {
-      result += '[^/]'
-    } else if ('.+^${}()|[]\\'.includes(char)) {
-      result += '\\' + char
-    } else {
-      result += char
-    }
-  }
-  return new RegExp('^' + result + '$')
-}
-
-function ensureRelative(dir: string, path: string) {
-  return isAbsolute(path) ? relative(dir, path) : path
 }
