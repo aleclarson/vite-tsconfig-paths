@@ -76,8 +76,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       // native side (Rolldown/Vite 6.3+/Rollup 4.38+). Older versions
       // ignore the filter and call the handler for all imports.
       filter: {
-        // Keep the relative import check aligned with path.relativeImportRE.
-        id: /^(?!\.\.?(\/|$)|\0)/,
+        id: /^(?!\.\.|\.\/|\0)/,
       },
       async handler(id: string, importer: string | undefined) {
         if (!importer) {
