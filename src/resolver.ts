@@ -396,11 +396,29 @@ function createResolver(
     return null
   }
 
+  const configDir = path.normalize(path.dirname(configPath))
+  const pathsBase = path.resolve(configDir, baseUrl ?? '.')
+
+  // oxc-resolver treats paths starting with a dot as relative imports. Pass
+  // non-relative ".." aliases through its generic alias option instead.
+  const dotDotAliases = Object.fromEntries(
+    Object.entries(paths ?? {})
+      .filter(
+        ([alias]) =>
+          alias.startsWith('..') && !path.relativeImportRE.test(alias)
+      )
+      .map(([alias, targets]) => [
+        alias,
+        targets.map((target) => path.resolve(pathsBase, target)),
+      ])
+  )
+
   // Create an oxc-resolver instance for this project's tsconfig.
   // Using modules: [] prevents node_modules resolution — we only want
   // tsconfig paths and baseUrl resolution.
   const oxcResolver = new ResolverFactory({
     tsconfig: { configFile: configPath },
+    alias: dotDotAliases,
     extensions: [
       '.ts',
       '.tsx',
@@ -420,8 +438,6 @@ function createResolver(
     modules: [],
     symlinks: true,
   })
-
-  const configDir = path.normalize(path.dirname(configPath))
 
   let outDir = compilerOptions.outDir && path.normalize(compilerOptions.outDir)
 
