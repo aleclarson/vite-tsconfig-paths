@@ -19,7 +19,7 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 > **New in v7** – Resolution engine replaced with [oxc-resolver](https://github.com/oxc-project/oxc-resolver) for significantly faster path resolution. Rolldown hook filters added for optimized performance under Rolldown-powered Vite. All existing plugin options and behavior are preserved. See the [Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases) page for the full changelog.
 
 > [!TIP]
-> **Vite 8+** natively supports tsconfig path resolution via [`resolve.tsconfigPaths`](https://vite.dev/guide/features#paths). If you're on Vite 8 or later, you may not need this plugin — add `resolve: { tsconfigPaths: true }` to your Vite config instead. This plugin remains useful for Vite 5–7, or if you need features like lazy discovery, project references, or fine-grained control over which tsconfigs are used.
+> **Vite 8+** natively supports tsconfig path resolution via [`resolve.tsconfigPaths`](https://vite.dev/guide/features#paths). If you're on Vite 8 or later, you may not need this plugin. Add `resolve: { tsconfigPaths: true }` to your Vite config instead. This plugin remains useful for Vite 5–7, or if you need configurable discovery and selection, such as eager or lazy discovery, project references, or a specific set of tsconfigs.
 
 ## Install
 
