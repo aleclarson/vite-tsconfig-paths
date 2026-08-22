@@ -1,5 +1,11 @@
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { createTsconfigResolvers } from '../src/resolver'
@@ -116,7 +122,7 @@ test('uses config path order for deterministic precedence', async () => {
   ])
 })
 
-test('reloads a directly changed config', async () => {
+test('reloads a directly changed, unlinked, and restored config', async () => {
   const root = createProject({}, {})
   write(root, 'next/value.ts', 'export const value = true')
   const resolvers = createTsconfigResolvers({
@@ -125,7 +131,7 @@ test('reloads a directly changed config', async () => {
     workspaceRoot: root,
     logger: { error() {}, hasErrorLogged: () => false },
   })
-  const watcher = Object.assign(new EventEmitter(), { add() {} })
+  const watcher = createWatcher()
   resolvers.reset()
   resolvers.watch(watcher as any)
 
@@ -138,13 +144,157 @@ test('reloads a directly changed config', async () => {
   )
   watcher.emit('all', 'change', join(root, 'tsconfig.json'))
 
-  await vi.waitFor(async () => {
-    const [resolveId] = await collect(resolvers.get(importer))
-    await expect(resolveId('@/value', importer)).resolves.toEqual([
-      realpathSync(join(root, 'next/value.ts')),
-      true,
-    ])
+  await expectResolution(resolvers, importer, join(root, 'next/value.ts'))
+
+  unlinkSync(join(root, 'tsconfig.json'))
+  watcher.emit('all', 'unlink', join(root, 'tsconfig.json'))
+  expect(await collect(resolvers.get(importer))).toEqual([])
+
+  write(
+    root,
+    'tsconfig.json',
+    JSON.stringify({ compilerOptions: { paths: { '@/*': ['./src/*'] } } })
+  )
+  watcher.emit('all', 'add', join(root, 'tsconfig.json'))
+  await expectResolution(resolvers, importer, join(root, 'src/value.ts'))
+})
+
+test('watches sources loaded before the watcher is attached', async () => {
+  const root = createProject(
+    {},
+    { extends: './base.json', references: [{ path: './referenced' }] }
+  )
+  write(root, 'base.json', JSON.stringify({ compilerOptions: {} }))
+  write(
+    root,
+    'referenced/tsconfig.json',
+    JSON.stringify({ compilerOptions: {} })
+  )
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
   })
+  resolvers.reset()
+  await collect(resolvers.get(join(root, 'src/index.ts')))
+
+  const watcher = createWatcher()
+  resolvers.watch(watcher as any)
+
+  expect(watcher.add).toHaveBeenCalledWith(join(root, 'tsconfig.json'))
+  expect(watcher.add).toHaveBeenCalledWith(join(root, 'base.json'))
+  expect(watcher.add).toHaveBeenCalledWith(
+    join(root, 'referenced/tsconfig.json')
+  )
+})
+
+test('rebuilds for transitive source changes and restores an unlinked source', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-resolver-'))
+  write(
+    root,
+    'tsconfig.json',
+    JSON.stringify({ extends: './intermediate.json' })
+  )
+  write(root, 'intermediate.json', JSON.stringify({ extends: './base.json' }))
+  write(root, 'src/value.ts', 'export const value = true')
+  write(
+    root,
+    'base.json',
+    JSON.stringify({ compilerOptions: { paths: { '@/*': ['./src/*'] } } })
+  )
+  write(root, 'next/value.ts', 'export const value = true')
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    ignoreConfigErrors: true,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  const watcher = createWatcher()
+  resolvers.reset()
+  resolvers.watch(watcher as any)
+  const importer = join(root, 'src/index.ts')
+  await expectResolution(resolvers, importer, join(root, 'src/value.ts'))
+
+  write(
+    root,
+    'base.json',
+    JSON.stringify({ compilerOptions: { paths: { '@/*': ['./next/*'] } } })
+  )
+  watcher.emit('all', 'change', join(root, 'base.json'))
+  await expectResolution(resolvers, importer, join(root, 'next/value.ts'))
+
+  unlinkSync(join(root, 'base.json'))
+  watcher.emit('all', 'unlink', join(root, 'base.json'))
+  expect(await collect(resolvers.get(importer))).toEqual([])
+
+  write(
+    root,
+    'base.json',
+    JSON.stringify({ compilerOptions: { paths: { '@/*': ['./src/*'] } } })
+  )
+  watcher.emit('all', 'add', join(root, 'base.json'))
+  await expectResolution(resolvers, importer, join(root, 'src/value.ts'))
+})
+
+test.each(['eager', 'lazy'] as const)(
+  'discovers a config added after an empty %s scan',
+  async (discovery) => {
+    const root = mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-resolver-'))
+    write(root, 'src/value.ts', 'export const value = true')
+    const resolvers = createTsconfigResolvers({
+      projectDiscovery: discovery === 'lazy' ? 'lazy' : 'eager',
+      projectRoot: root,
+      workspaceRoot: root,
+      logger: { error() {}, hasErrorLogged: () => false },
+    })
+    const watcher = createWatcher()
+    resolvers.reset()
+    resolvers.watch(watcher as any)
+    const importer = join(root, 'src/index.ts')
+    expect(await collect(resolvers.get(importer))).toEqual([])
+
+    write(
+      root,
+      'tsconfig.json',
+      JSON.stringify({ compilerOptions: { paths: { '@/*': ['./src/*'] } } })
+    )
+    watcher.emit('all', 'add', join(root, 'tsconfig.json'))
+
+    await expectResolution(resolvers, importer, join(root, 'src/value.ts'))
+  }
+)
+
+test('coalesces burst events and publishes only the latest graph', async () => {
+  const root = createProject({}, {})
+  write(root, 'first/value.ts', 'export const value = true')
+  write(root, 'last/value.ts', 'export const value = true')
+  const resolvers = createTsconfigResolvers({
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  const watcher = createWatcher()
+  resolvers.reset()
+  resolvers.watch(watcher as any)
+  const importer = join(root, 'src/index.ts')
+  await expectResolution(resolvers, importer, join(root, 'src/value.ts'))
+
+  write(
+    root,
+    'tsconfig.json',
+    JSON.stringify({ compilerOptions: { paths: { '@/*': ['./first/*'] } } })
+  )
+  watcher.emit('all', 'change', join(root, 'tsconfig.json'))
+  write(
+    root,
+    'tsconfig.json',
+    JSON.stringify({ compilerOptions: { paths: { '@/*': ['./last/*'] } } })
+  )
+  watcher.emit('all', 'change', join(root, 'tsconfig.json'))
+
+  await expectResolution(resolvers, importer, join(root, 'last/value.ts'))
 })
 
 function createProject(
@@ -180,4 +330,20 @@ async function collect<T>(iterable: AsyncIterable<T>) {
     values.push(value)
   }
   return values
+}
+
+function createWatcher() {
+  return Object.assign(new EventEmitter(), { add: vi.fn() })
+}
+
+async function expectResolution(
+  resolvers: ReturnType<typeof createTsconfigResolvers>,
+  importer: string,
+  expected: string
+) {
+  const [resolveId] = await collect(resolvers.get(importer))
+  await expect(resolveId('@/value', importer)).resolves.toEqual([
+    realpathSync(expected),
+    true,
+  ])
 }

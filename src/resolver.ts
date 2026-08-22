@@ -27,6 +27,12 @@ export interface TsconfigResolvers {
   watch: (watcher: vite.FSWatcher) => void
 }
 
+interface ResolverStore {
+  directoryCache: Map<string, Directory>
+  resolversByProject: WeakMap<Project, Resolver>
+  addedProjectPaths: Set<NormalizedPath>
+}
+
 export function createTsconfigResolvers({
   projectRoot,
   workspaceRoot,
@@ -40,10 +46,12 @@ export function createTsconfigResolvers({
   logFile?: LogFileWriter | null
   logger: Logger
 }): TsconfigResolvers {
-  let initializing: Promise<void> | undefined
-  let directoryCache: Map<string, Directory>
-  let resolversByProject: WeakMap<Project, Resolver>
-  let addedProjectPaths: Set<NormalizedPath>
+  let activeStore = createStore()
+  let rebuildPromise: Promise<void> | undefined
+  let requestedGeneration = 0
+  let completedGeneration = 0
+  let watcher: vite.FSWatcher | undefined
+  const trackedSourcePaths = new Set<NormalizedPath>()
   let isFirstParseError = true
 
   const configNames = opts.configNames || ['tsconfig.json', 'jsconfig.json']
@@ -84,44 +92,61 @@ export function createTsconfigResolvers({
     }
   }
 
-  // File watcher hooks
-  let onBeforeAddProject: ((project: Project) => void) | undefined
-  let onParseError: ((tsconfigFile: string) => void) | undefined
+  function createStore(): ResolverStore {
+    return {
+      directoryCache: new Map(),
+      resolversByProject: new WeakMap(),
+      addedProjectPaths: new Set(),
+    }
+  }
 
-  const addProject = (project: Project, data?: Directory) => {
-    const tsconfigFile = project.tsconfigFile
-    if (addedProjectPaths.has(tsconfigFile)) {
+  const trackSource = (sourcePath: string) => {
+    const normalizedPath = path.normalize(sourcePath)
+    if (trackedSourcePaths.has(normalizedPath)) {
       return
     }
-    addedProjectPaths.add(tsconfigFile)
+    trackedSourcePaths.add(normalizedPath)
+    watcher?.add(normalizedPath)
+  }
+
+  const addProject = (
+    store: ResolverStore,
+    project: Project,
+    data?: Directory
+  ) => {
+    const tsconfigFile = project.tsconfigFile
+    if (store.addedProjectPaths.has(tsconfigFile)) {
+      return
+    }
+    store.addedProjectPaths.add(tsconfigFile)
     const dir = path.normalize(path.dirname(tsconfigFile))
-    data ??= directoryCache.get(dir)
+    data ??= store.directoryCache.get(dir)
 
     // Sanity check
     if (data?.projects.some((p) => p.tsconfigFile === tsconfigFile)) {
       return
     }
 
-    onBeforeAddProject?.(project)
+    project.sourcePaths.forEach(trackSource)
 
     // Referenced projects must be added first, so they can override
     // the parent project's paths if both are in the same directory.
     if (project.referenced) {
       project.referenced.forEach((projectRef) => {
-        addProject(projectRef)
+        addProject(store, projectRef)
       })
       // Ensure the latest directory data is used. One of the project
       // references may have updated it.
-      data = directoryCache.get(dir)
+      data = store.directoryCache.get(dir)
     }
 
     const resolver = createResolver(project, opts, logFile)
     if (resolver) {
-      resolversByProject.set(project, resolver)
+      store.resolversByProject.set(project, resolver)
     }
 
     if (!data || data === emptyDirectory) {
-      directoryCache.set(
+      store.directoryCache.set(
         dir,
         (data = {
           projects: [],
@@ -133,12 +158,15 @@ export function createTsconfigResolvers({
     data.projects.push(project)
   }
 
-  const loadProject = async (tsconfigFile: string, data?: Directory) => {
+  const loadProject = async (
+    store: ResolverStore,
+    tsconfigFile: string,
+    data?: Directory
+  ) => {
+    trackSource(tsconfigFile)
     const project = await parseProject(tsconfigFile)
     if (project) {
-      addProject(project, data)
-    } else {
-      onParseError?.(tsconfigFile)
+      addProject(store, project, data)
     }
   }
 
@@ -150,9 +178,10 @@ export function createTsconfigResolvers({
   }
 
   const processConfigFile = async (
+    store: ResolverStore,
     dir: NormalizedPath,
     name: string,
-    data = directoryCache.get(dir)
+    data = store.directoryCache.get(dir)
   ): Promise<void> => {
     if (!data) {
       return // Wait to be loaded on-demand.
@@ -161,10 +190,10 @@ export function createTsconfigResolvers({
     if (data.projects.some((p) => p.tsconfigFile === file)) {
       return
     }
-    await loadProject(file, data)
+    await loadProject(store, file, data)
   }
 
-  const loadEagerProjects = async () => {
+  const loadEagerProjects = async (store: ResolverStore) => {
     let projectPaths: string[]
     if (opts.projects) {
       projectPaths = opts.projects.map((file) => {
@@ -182,21 +211,39 @@ export function createTsconfigResolvers({
 
     debug('Eagerly parsing these projects:', projectPaths)
 
-    await Promise.all(Array.from(new Set(projectPaths), (p) => loadProject(p)))
-    for (const data of directoryCache.values()) {
+    await Promise.all(
+      Array.from(new Set(projectPaths), (p) => loadProject(store, p))
+    )
+    for (const data of store.directoryCache.values()) {
       sortProjects(data.projects)
     }
   }
 
   const resetResolvers = () => {
-    directoryCache = new Map()
-    resolversByProject = new WeakMap()
-    addedProjectPaths = new Set()
-    initializing = loadEagerProjects()
+    requestedGeneration++
+    if (!rebuildPromise) {
+      rebuildPromise = rebuildResolvers().finally(() => {
+        rebuildPromise = undefined
+      })
+    }
+  }
+
+  const rebuildResolvers = async () => {
+    while (completedGeneration < requestedGeneration) {
+      const generation = requestedGeneration
+      const store = createStore()
+      await loadEagerProjects(store)
+      activeStore = store
+      completedGeneration = generation
+    }
   }
 
   // Only used when projectDiscovery is 'lazy'.
-  const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
+  const discoverProjects = async (
+    store: ResolverStore,
+    dir: NormalizedPath,
+    data: Directory
+  ) => {
     debug('Searching directory for tsconfig files:', dir)
     const names = await readdir(dir).catch(() => [])
 
@@ -204,7 +251,7 @@ export function createTsconfigResolvers({
       names
         .filter((name) => configNames.includes(name))
         .map((name) => {
-          return processConfigFile(dir, name, data)
+          return processConfigFile(store, dir, name, data)
         })
     )
 
@@ -218,7 +265,7 @@ export function createTsconfigResolvers({
       }
     } else {
       // No projects found. Reduce memory usage with a stand-in.
-      directoryCache.set(dir, emptyDirectory)
+      store.directoryCache.set(dir, emptyDirectory)
       debug('No tsconfig files found in directory:', dir)
     }
   }
@@ -226,110 +273,71 @@ export function createTsconfigResolvers({
   const getResolvers = async function* (
     importer: string
   ): AsyncIterable<Resolver> {
-    await initializing
+    while (true) {
+      await rebuildPromise
+      const store = activeStore
+      const resolvers: Resolver[] = []
+      let dir = path.normalize(importer)
+      const { root } = path.parse(dir)
+      while (dir !== (dir = path.dirname(dir)) && dir !== root) {
+        let data = store.directoryCache.get(dir)
 
-    let dir = path.normalize(importer)
-    const { root } = path.parse(dir)
-    while (dir !== (dir = path.dirname(dir)) && dir !== root) {
-      let data = directoryCache.get(dir)
-
-      if (opts.projectDiscovery === 'lazy') {
-        if (!data) {
-          if (skip(path.basename(dir))) {
-            directoryCache.set(dir, emptyDirectory)
-            continue
+        if (opts.projectDiscovery === 'lazy') {
+          if (!data) {
+            if (skip(path.basename(dir))) {
+              store.directoryCache.set(dir, emptyDirectory)
+              continue
+            }
+            store.directoryCache.set(
+              dir,
+              (data = {
+                projects: [],
+                lazyDiscovery: null,
+              })
+            )
           }
-          directoryCache.set(
-            dir,
-            (data = {
-              projects: [],
-              lazyDiscovery: null,
-            })
-          )
+          await (data.lazyDiscovery ??= discoverProjects(store, dir, data))
+        } else if (!data) {
+          continue
         }
-        await (data.lazyDiscovery ??= discoverProjects(dir, data))
-      } else if (!data) {
+
+        for (const project of data.projects) {
+          const resolver = store.resolversByProject.get(project)
+          if (resolver) {
+            resolvers.push(resolver)
+          }
+        }
+      }
+
+      // A watcher event may arrive while lazy discovery is awaiting I/O.
+      // Retry against the replacement store instead of yielding stale data.
+      if (store !== activeStore || rebuildPromise) {
         continue
       }
-
-      for (const project of data.projects) {
-        const resolver = resolversByProject.get(project)
-        if (resolver) {
-          yield resolver
-        }
-      }
+      yield* resolvers
+      return
     }
   }
 
-  const watchProjects = (watcher: vite.FSWatcher) => {
-    onBeforeAddProject = (project) => {
-      project.sourcePaths.forEach((sourcePath) => watcher.add(sourcePath))
-    }
-    onParseError = (tsconfigFile) => {
-      // Try again if the file changes.
-      watcher.add(tsconfigFile)
-    }
+  const watchProjects = (nextWatcher: vite.FSWatcher) => {
+    watcher = nextWatcher
+    trackedSourcePaths.forEach((sourcePath) => watcher!.add(sourcePath))
     watcher.on('all', (event, file) => {
       const normalizedFile = path.normalize(file)
-      if (
-        !normalizedFile.endsWith('.json') ||
-        !path.isAbsolute(normalizedFile)
-      ) {
+      if (!path.isAbsolute(normalizedFile)) {
         return
       }
-      if (event === 'add') {
-        if (configNames.includes(path.basename(normalizedFile))) {
-          processConfigFile(
-            path.dirname(normalizedFile),
-            path.basename(normalizedFile)
-          ).catch(console.error)
-        }
-      } else if (event === 'change' || event === 'unlink') {
-        invalidateConfigFile(
-          path.dirname(normalizedFile),
-          path.basename(normalizedFile),
-          event
-        )
+      if (
+        (event === 'add' &&
+          (configNames.includes(path.basename(normalizedFile)) ||
+            trackedSourcePaths.has(normalizedFile))) ||
+        ((event === 'change' || event === 'unlink') &&
+          trackedSourcePaths.has(normalizedFile))
+      ) {
+        debug(`Rebuilding resolver graph because of ${event} event:`, file)
+        resetResolvers()
       }
     })
-
-    function invalidateConfigFile(
-      dir: NormalizedPath,
-      name: string,
-      event: 'change' | 'unlink'
-    ): void {
-      const data = directoryCache.get(dir)
-      if (!data) {
-        return
-      }
-      const file = path.join(dir, name as NormalizedPath)
-      const index = data.projects.findIndex(
-        (project) => project.tsconfigFile === file
-      )
-      if (index !== -1) {
-        const project = data.projects[index]
-        debug(
-          `Unloading project because of ${event} event:`,
-          project.tsconfigFile
-        )
-
-        addedProjectPaths.delete(project.tsconfigFile)
-        resolversByProject.delete(project)
-        data.projects.splice(index, 1)
-
-        if (event === 'change') {
-          if (opts.projectDiscovery === 'lazy') {
-            data.lazyDiscovery = null
-          } else {
-            loadProject(project.tsconfigFile, data)
-              .then(() => {
-                sortProjects(data.projects)
-              })
-              .catch(console.error)
-          }
-        }
-      }
-    }
   }
 
   return {
