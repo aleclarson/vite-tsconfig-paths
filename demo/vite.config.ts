@@ -5,9 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [
     react(),
-    tsconfigPaths({
-      parseNative: false,
-    }),
+    tsconfigPaths(),
     // {
     //   name: 'measure-startup-time-and-quit',
     //   resolveId() {

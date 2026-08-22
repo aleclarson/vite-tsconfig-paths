@@ -1,10 +1,9 @@
-import * as fs from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 import { inspect } from 'node:util'
 import { ResolverFactory } from 'oxc-resolver'
-import * as tsconfck from 'tsconfck'
 import * as vite from 'vite'
+import { findAllProjects, loadProjectGraph } from './config'
 import { debug } from './debug'
 import { LogFileWriter } from './logFile'
 import type { NormalizedPath } from './path'
@@ -44,24 +43,8 @@ export function createTsconfigResolvers({
   let initializing: Promise<void> | undefined
   let directoryCache: Map<string, Directory>
   let resolversByProject: WeakMap<Project, Resolver>
+  let addedProjectPaths: Set<NormalizedPath>
   let isFirstParseError = true
-  let hasTypeScriptDep = false
-
-  if (opts.parseNative) {
-    try {
-      const pkgJson = fs.readFileSync(
-        join(workspaceRoot, 'package.json'),
-        'utf8'
-      )
-      const pkg = JSON.parse(pkgJson)
-      const deps = { ...pkg.dependencies, ...pkg.devDependencies }
-      hasTypeScriptDep = 'typescript' in deps
-    } catch (e: any) {
-      if (e.code != 'ENOENT') {
-        throw e
-      }
-    }
-  }
 
   const configNames = opts.configNames || ['tsconfig.json', 'jsconfig.json']
   debug(
@@ -75,11 +58,7 @@ export function createTsconfigResolvers({
     tsconfigFile = path.normalize(tsconfigFile)
 
     try {
-      return (
-        hasTypeScriptDep
-          ? await tsconfck.parseNative(tsconfigFile)
-          : await tsconfck.parse(tsconfigFile)
-      ) as Project
+      return loadProjectGraph(tsconfigFile)
     } catch (error: any) {
       if (opts.ignoreConfigErrors) {
         debug('[!] Failed to parse tsconfig file at %s', tsconfigFile)
@@ -111,6 +90,10 @@ export function createTsconfigResolvers({
 
   const addProject = (project: Project, data?: Directory) => {
     const tsconfigFile = project.tsconfigFile
+    if (addedProjectPaths.has(tsconfigFile)) {
+      return
+    }
+    addedProjectPaths.add(tsconfigFile)
     const dir = path.normalize(path.dirname(tsconfigFile))
     data ??= directoryCache.get(dir)
 
@@ -194,10 +177,7 @@ export function createTsconfigResolvers({
       if (opts.projectDiscovery === 'lazy') {
         return
       }
-      projectPaths = await tsconfck.findAll(workspaceRoot, {
-        configNames,
-        skip,
-      })
+      projectPaths = await findAllProjects(workspaceRoot, configNames, skip)
     }
 
     debug('Eagerly parsing these projects:', projectPaths)
@@ -211,6 +191,7 @@ export function createTsconfigResolvers({
   const resetResolvers = () => {
     directoryCache = new Map()
     resolversByProject = new WeakMap()
+    addedProjectPaths = new Set()
     initializing = loadEagerProjects()
   }
 
@@ -282,10 +263,7 @@ export function createTsconfigResolvers({
 
   const watchProjects = (watcher: vite.FSWatcher) => {
     onBeforeAddProject = (project) => {
-      watcher.add(project.tsconfigFile)
-      project.extended?.forEach((parent) => {
-        watcher.add(parent.tsconfigFile)
-      })
+      project.sourcePaths.forEach((sourcePath) => watcher.add(sourcePath))
     }
     onParseError = (tsconfigFile) => {
       // Try again if the file changes.
@@ -335,6 +313,7 @@ export function createTsconfigResolvers({
           project.tsconfigFile
         )
 
+        addedProjectPaths.delete(project.tsconfigFile)
         resolversByProject.delete(project)
         data.projects.splice(index, 1)
 
@@ -425,8 +404,8 @@ function createResolver(
 
   let outDir = compilerOptions.outDir && path.normalize(compilerOptions.outDir)
 
-  // When `tsconfck.parseNative` is used, the outDir is absolute, which
-  // is not what `getIncluder` expects.
+  // `${configDir}` may produce an absolute outDir, while `getIncluder`
+  // expects paths relative to the config directory.
   if (outDir && path.isAbsolute(outDir)) {
     outDir = path.relative(configDir, outDir)
   }

@@ -1,5 +1,4 @@
-import type { TSConfckParseNativeResult, TSConfckParseResult } from 'tsconfck'
-import type { CompilerOptions, ParsedCommandLine } from 'typescript'
+import type { TsconfigJsonResolved } from 'get-tsconfig'
 import { NormalizedPath } from './path'
 
 export interface PluginOptions {
@@ -42,16 +41,6 @@ export interface PluginOptions {
    * resolved by this plugin. This has no effect when `loose` is true.
    */
   importerFilter?: (importer: string) => boolean
-  /**
-   * Enable use of `tsconfck.parseNative` function, which delegates the
-   * loading of `tsconfig.json` files to the TypeScript compiler. You'll
-   * probably never need this, but I added it just in case.
-   *
-   * ⚠️ This option can slow down Vite's startup time by as much as 600ms,
-   * due to the size of the TypeScript compiler. Only use it when
-   * necessary.
-   */
-  parseNative?: boolean
   /**
    * Silence the warning about malformed `tsconfig.json` files.
    */
@@ -102,28 +91,16 @@ export interface PluginOptions {
   logFile?: string | boolean
 }
 
-type Merge<T, U> = Omit<T, keyof U> & U
-
 /**
  * An object representing a `tsconfig.json` file.
- *
- * Created by `tsconfck` so we shouldn't add properties to it.
  */
-export type Project = Merge<
-  TSConfckParseResult | TSConfckParseNativeResult,
-  {
-    extended?: Project[]
-    referenced?: Project[]
-    tsconfigFile: NormalizedPath
-    tsconfig: {
-      files?: string[]
-      include?: string[]
-      exclude?: string[]
-      compilerOptions?: CompilerOptions
-    }
-    result?: ParsedCommandLine
-  }
->
+export type Project = {
+  referenced?: Project[]
+  tsconfigFile: NormalizedPath
+  tsconfig: TsconfigJsonResolved
+  /** Every config file contributing through `extends`, including this one. */
+  sourcePaths: NormalizedPath[]
+}
 
 export type Resolver = (
   id: string,

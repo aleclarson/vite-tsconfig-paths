@@ -35,6 +35,9 @@ jobs:
       - name: Lint (type-aware)
         run: pnpm lint
 
+      - name: Test TypeScript 7 package compatibility
+        run: pnpm test:typescript-7
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
