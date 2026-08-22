@@ -4,7 +4,7 @@ import { execa } from 'execa'
 import * as vite from 'vite'
 import tsconfigPaths, { type PluginOptions } from '../src/index.js'
 
-const tscBinPath = resolve(__dirname, '../node_modules/.bin/tsc')
+const tscBinPath = resolve(__dirname, '../node_modules/typescript/bin/tsc')
 
 const fixturesDir = join(__dirname, '__fixtures__')
 

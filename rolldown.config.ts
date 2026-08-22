@@ -7,6 +7,6 @@ export default defineConfig({
     format: 'esm',
     sourcemap: true,
   },
-  external: [/^node:/, 'vite', 'debug', 'tsconfck', 'oxc-resolver'],
+  external: [/^node:/, 'vite', 'debug', 'get-tsconfig', 'oxc-resolver'],
   platform: 'node',
 })
