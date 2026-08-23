@@ -8,6 +8,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { findAllProjects, loadProjectGraph } from '../src/config'
+import { normalize } from '../src/path'
 
 describe('loadProjectGraph', () => {
   test('parses JSONC, multiple extends, packages, symlinks, and configDir', () => {
@@ -45,12 +46,16 @@ describe('loadProjectGraph', () => {
     expect(project.tsconfig.compilerOptions?.paths).toEqual({
       '@/*': ['./src/*'],
     })
-    expect(project.tsconfig.include).toEqual([join(root, 'src/**/*.ts')])
+    expect(project.tsconfig.include).toEqual([
+      normalize(join(root, 'src/**/*.ts')),
+    ])
     expect(new Set(project.sourcePaths)).toEqual(
       new Set([
-        join(root, 'tsconfig.json'),
-        join(root, 'bases/first.json'),
-        realpathSync(join(root, 'node_modules/@fixture/shared/tsconfig.json')),
+        normalize(join(root, 'tsconfig.json')),
+        normalize(join(root, 'bases/first.json')),
+        normalize(
+          realpathSync(join(root, 'node_modules/@fixture/shared/tsconfig.json'))
+        ),
       ])
     )
   })
@@ -83,7 +88,7 @@ describe('findAllProjects', () => {
       (name) => name === 'ignored'
     )
 
-    expect(projects.map((file) => relative(root, file))).toEqual([
+    expect(projects.map((file) => normalize(relative(root, file)))).toEqual([
       'a/jsconfig.json',
       'z/tsconfig.json',
     ])
