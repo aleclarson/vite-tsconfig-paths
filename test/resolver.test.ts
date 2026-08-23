@@ -8,6 +8,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { normalize } from '../src/path'
 import { createTsconfigResolvers } from '../src/resolver'
 
 test.each([
@@ -38,7 +39,10 @@ test.each([
 
     await expect(
       resolveId('@/value', join(root, 'src', importer))
-    ).resolves.toEqual([realpathSync(join(root, 'src/value.ts')), true])
+    ).resolves.toEqual([
+      normalize(realpathSync(join(root, 'src/value.ts'))),
+      true,
+    ])
   }
 )
 
@@ -60,7 +64,7 @@ test('keeps include and exclude matching plugin-owned', async () => {
   const [resolveId] = await collect(resolvers.get(included))
 
   await expect(resolveId('@/value', included)).resolves.toEqual([
-    realpathSync(join(root, 'src/value.ts')),
+    normalize(realpathSync(join(root, 'src/value.ts'))),
     true,
   ])
   await expect(resolveId('@/value', excluded)).resolves.toEqual([
@@ -92,7 +96,7 @@ test.each([
   const [resolveId] = await collect(resolvers.get(importer))
 
   await expect(resolveId('@/value', importer)).resolves.toEqual([
-    realpathSync(join(root, 'src/value.ts')),
+    normalize(realpathSync(join(root, 'src/value.ts'))),
     true,
   ])
 })
@@ -117,7 +121,7 @@ test('uses config path order for deterministic precedence', async () => {
   const [resolveId] = await collect(resolvers.get(importer))
 
   await expect(resolveId('@/value', importer)).resolves.toEqual([
-    realpathSync(join(root, 'first/value.ts')),
+    normalize(realpathSync(join(root, 'first/value.ts'))),
     true,
   ])
 })
@@ -182,10 +186,12 @@ test('watches sources loaded before the watcher is attached', async () => {
   const watcher = createWatcher()
   resolvers.watch(watcher as any)
 
-  expect(watcher.add).toHaveBeenCalledWith(join(root, 'tsconfig.json'))
-  expect(watcher.add).toHaveBeenCalledWith(join(root, 'base.json'))
   expect(watcher.add).toHaveBeenCalledWith(
-    join(root, 'referenced/tsconfig.json')
+    normalize(join(root, 'tsconfig.json'))
+  )
+  expect(watcher.add).toHaveBeenCalledWith(normalize(join(root, 'base.json')))
+  expect(watcher.add).toHaveBeenCalledWith(
+    normalize(join(root, 'referenced/tsconfig.json'))
   )
 })
 
@@ -343,7 +349,7 @@ async function expectResolution(
 ) {
   const [resolveId] = await collect(resolvers.get(importer))
   await expect(resolveId('@/value', importer)).resolves.toEqual([
-    realpathSync(expected),
+    normalize(realpathSync(expected)),
     true,
   ])
 }
