@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, relative } from 'node:path'
 import { execa } from 'execa'
@@ -15,36 +21,40 @@ const packed = await execa(
 )
 
 const packageTarball = join(smokeDir, basename(packed.stdout.trim()))
-const viteStub = join(smokeDir, 'vite-stub')
-mkdirSync(viteStub)
-writeFileSync(
-  join(viteStub, 'package.json'),
-  JSON.stringify({
-    name: 'vite',
-    version: '8.0.0',
-    type: 'module',
-    main: 'index.js',
-  })
+const typescriptPackage = JSON.parse(
+  readFileSync('node_modules/typescript-7/package.json', 'utf8')
 )
-writeFileSync(
-  join(viteStub, 'index.js'),
+const typescriptStub = createStubPackage(
+  'typescript',
+  typescriptPackage.version,
+  `export const version = ${JSON.stringify(typescriptPackage.version)}\n`
+)
+const viteStub = createStubPackage(
+  'vite',
+  '8.0.0',
   `export const normalizePath = path => path.replaceAll('\\\\', '/')
 export const searchForWorkspaceRoot = path => path
 `
 )
-const oxcResolverStub = join(smokeDir, 'oxc-resolver-stub')
-mkdirSync(oxcResolverStub)
-writeFileSync(
-  join(oxcResolverStub, 'package.json'),
-  JSON.stringify({
-    name: 'oxc-resolver',
-    version: '11.19.1',
-    type: 'module',
-    main: 'index.js',
-  })
+const debugStub = createStubPackage(
+  'debug',
+  '4.4.3',
+  `const createDebug = () => Object.assign(() => {}, { enabled: false })
+createDebug.enable = () => {}
+export default createDebug
+`
 )
-writeFileSync(
-  join(oxcResolverStub, 'index.js'),
+const getTsconfigStub = createStubPackage(
+  'get-tsconfig',
+  '5.0.0-beta.6',
+  `export function readTsconfig() {
+  throw new Error('Not used by the package-load smoke test')
+}
+`
+)
+const oxcResolverStub = createStubPackage(
+  'oxc-resolver',
+  '11.19.1',
   'export class ResolverFactory {}\n'
 )
 const packageJson = {
@@ -52,15 +62,14 @@ const packageJson = {
   type: 'module',
   pnpm: {
     overrides: {
-      'oxc-resolver': 'file:./oxc-resolver-stub',
+      debug: debugStub,
+      'get-tsconfig': getTsconfigStub,
+      'oxc-resolver': oxcResolverStub,
     },
   },
   dependencies: {
-    typescript: fileDependency(
-      smokeDir,
-      realpathSync('node_modules/typescript-7')
-    ),
-    vite: 'file:./vite-stub',
+    typescript: typescriptStub,
+    vite: viteStub,
     'vite-tsconfig-paths': fileDependency(smokeDir, packageTarball),
   },
 }
@@ -123,4 +132,16 @@ console.log(result.stdout)
 
 function fileDependency(from: string, target: string) {
   return `file:${relative(from, target).replaceAll('\\', '/')}`
+}
+
+function createStubPackage(name: string, version: string, source: string) {
+  const directoryName = `${name}-stub`
+  const directory = join(smokeDir, directoryName)
+  mkdirSync(directory)
+  writeFileSync(
+    join(directory, 'package.json'),
+    JSON.stringify({ name, version, type: 'module', main: 'index.js' })
+  )
+  writeFileSync(join(directory, 'index.js'), source)
+  return `file:./${directoryName}`
 }
