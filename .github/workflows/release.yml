@@ -1,19 +1,112 @@
 name: Release
 
 on:
-  release:
+  workflow_run:
+    workflows:
+      - CI
     types:
-      - published
+      - completed
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git tag or commit to publish
+        required: true
+        default: master
 
-permissions: {}
+permissions:
+  actions: read
+  contents: read
 
 concurrency:
   group: npm-release
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    name: Prepare release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      npm_tag: ${{ steps.package.outputs.npm_tag }}
+      publish: ${{ steps.package.outputs.publish }}
+      ref: ${{ steps.package.outputs.ref }}
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
+
+      - name: Require successful CI
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sha=$(git rev-parse HEAD)
+          successful_runs=$(gh run list \
+            --workflow ci.yml \
+            --commit "$sha" \
+            --status success \
+            --json databaseId \
+            --jq length)
+          if [ "$successful_runs" -eq 0 ]; then
+            echo "No successful ci.yml run found for $sha" >&2
+            exit 1
+          fi
+
+      - name: Read release metadata
+        id: package
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          name=$(node --print "require('./package.json').name")
+          version=$(node --print "require('./package.json').version")
+          tag="v$version"
+          ref=$(git rev-parse HEAD)
+
+          if [[ "$name" != "vite-tsconfig-paths" ]]; then
+            echo "Expected package name vite-tsconfig-paths, found $name" >&2
+            exit 1
+          fi
+
+          if [ "$(git tag --points-at HEAD --list "$tag")" != "$tag" ]; then
+            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+              echo "Selected commit must have the $tag tag" >&2
+              exit 1
+            fi
+
+            echo "No $tag tag points at $ref; nothing to publish"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$version" == *-* ]]; then
+            npm_tag=next
+          else
+            npm_tag=latest
+          fi
+
+          {
+            echo "npm_tag=$npm_tag"
+            echo "publish=true"
+            echo "ref=$ref"
+          } >> "$GITHUB_OUTPUT"
+
   publish:
     name: Publish to npm
+    needs: prepare
+    if: needs.prepare.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: npm
@@ -22,44 +115,12 @@ jobs:
       id-token: write
     env:
       CI: true
-
     steps:
-      - name: Check out release tag
+      - name: Check out release commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event.release.tag_name }}
           persist-credentials: false
-
-      - name: Read release metadata
-        id: release
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          package_name="$(node -p "require('./package.json').name")"
-          package_version="$(node -p "require('./package.json').version")"
-          expected_tag="v${package_version}"
-
-          if [[ "$package_name" != "vite-tsconfig-paths" ]]; then
-            echo "Expected package name vite-tsconfig-paths, found $package_name" >&2
-            exit 1
-          fi
-
-          if [[ "$RELEASE_TAG" != "$expected_tag" ]]; then
-            echo "Release tag $RELEASE_TAG does not match package version $package_version" >&2
-            exit 1
-          fi
-
-          if [[ "$package_version" == *-* ]]; then
-            npm_dist_tag="next"
-          else
-            npm_dist_tag="latest"
-          fi
-
-          echo "npm_dist_tag=$npm_dist_tag" >> "$GITHUB_OUTPUT"
-          echo "Publishing $package_name@$package_version with npm dist-tag $npm_dist_tag"
+          ref: ${{ needs.prepare.outputs.ref }}
 
       - name: Set up pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -83,7 +144,17 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Publish with provenance
-        env:
-          NPM_DIST_TAG: ${{ steps.release.outputs.npm_dist_tag }}
-        run: npm publish --provenance --access public --tag "$NPM_DIST_TAG"
+      - name: Check whether version is published
+        id: registry
+        run: |
+          name=$(node --print "require('./package.json').name")
+          version=$(node --print "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish package
+        if: steps.registry.outputs.published == 'false'
+        run: npm publish --provenance --access public --tag "${{ needs.prepare.outputs.npm_tag }}"
