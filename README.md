@@ -16,7 +16,7 @@ Give [`vite`] the ability to resolve imports using TypeScript's path mapping.
 [`vite`]: https://github.com/vitejs/vite
 
 > [!NOTE]
-> **New in v7** – Resolution engine replaced with [oxc-resolver](https://github.com/oxc-project/oxc-resolver) for significantly faster path resolution. Rolldown hook filters added for optimized performance under Rolldown-powered Vite. All existing plugin options and behavior are preserved. See the [Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases) page for the full changelog.
+> **New in v7** – Config parsing no longer loads the TypeScript compiler, so projects can use TypeScript 7 without a peer dependency conflict. V7 requires Node.js 20.20 or newer. The resolution engine is [oxc-resolver](https://github.com/oxc-project/oxc-resolver). See the [Releases](https://github.com/aleclarson/vite-tsconfig-paths/releases) page for the full changelog.
 
 ## Install
 
@@ -124,13 +124,6 @@ For example, this is useful if you want imports in Vue templates to be resolved,
 #### `importerFilter: (importer: string) => boolean`
 
 Fine-grained control over which files should have their imports resolved by this plugin. This has no effect when `loose` is true.
-
-#### `parseNative: boolean`
-
-Enable use of the [`tsconfck.parseNative`](https://github.com/dominikg/tsconfck/blob/main/docs/api.md#parsenative) function, which delegates the loading of tsconfig files to the TypeScript compiler. You'll probably never need this, but I added it just in case.
-
-> [!WARNING]
-> This option can slow down Vite's startup time by as much as 600ms, due to the size of the TypeScript compiler. Only use it when necessary.
 
 #### `ignoreConfigErrors: boolean`
 

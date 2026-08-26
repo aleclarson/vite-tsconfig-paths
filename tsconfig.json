@@ -8,6 +8,7 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "noUnusedLocals": true,
+    "rootDir": "src",
     "outDir": "dist",
     "sourceMap": true,
     "strict": true,

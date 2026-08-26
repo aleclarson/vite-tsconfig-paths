@@ -1,5 +1,8 @@
-import ReactDOM from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { Root } from '@/Root'
 import '@/styles.css'
 
-ReactDOM.render(<Root />, document.getElementById('root'))
+const container = document.getElementById('root')
+if (!container) throw new Error('Missing #root element')
+
+createRoot(container).render(<Root />)

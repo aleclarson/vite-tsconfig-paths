@@ -4,7 +4,7 @@ import { execa } from 'execa'
 import * as vite from 'vite'
 import tsconfigPaths, { type PluginOptions } from '../src/index.js'
 
-const tscBinPath = resolve(__dirname, '../node_modules/.bin/tsc')
+const tscBinPath = resolve(__dirname, '../node_modules/typescript/bin/tsc')
 
 const fixturesDir = join(__dirname, '__fixtures__')
 
@@ -69,7 +69,9 @@ function debugResolve(): vite.Plugin {
       const resolved = await this.resolve(source, importer, { skipSelf: true })
       if (!resolved) {
         console.log('[FAILED] %O\n  from %O', source, importer)
-      } else if (resolved.resolvedBy !== 'vite:resolve') {
+      } else if (
+        (resolved as { resolvedBy?: string }).resolvedBy !== 'vite:resolve'
+      ) {
         console.log(
           '[SUCCESS] %O\n  from %O\n    => %O',
           source,

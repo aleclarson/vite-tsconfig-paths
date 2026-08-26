@@ -3,14 +3,15 @@
   "include": ["src", "vite.config.ts"],
   "compilerOptions": {
     "esModuleInterop": true,
+    "isolatedDeclarations": false,
     "allowJs": true,
     "checkJs": true,
     "jsx": "react-jsx",
     "lib": ["dom", "es2018"],
     "module": "esnext",
-    "baseUrl": ".",
+    "rootDir": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "types": ["vite/client"]
   }
