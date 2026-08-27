@@ -303,6 +303,49 @@ test('coalesces burst events and publishes only the latest graph', async () => {
   await expectResolution(resolvers, importer, join(root, 'last/value.ts'))
 })
 
+test('caches resolutions per importer directory, not globally', async () => {
+  // The resolver instance is shared by every importer under this tsconfig.
+  // `oxcResolver.async` only gets the importer's *directory*, and for a
+  // `#`-subpath import that directory decides which package.json applies.
+  // If the cache were keyed on the specifier alone, whichever package
+  // resolved "#dep" first would poison it for the other.
+  const root = createProject({}, {})
+  write(
+    root,
+    'packages/a/package.json',
+    JSON.stringify({ name: 'a', imports: { '#dep': './impl.js' } })
+  )
+  write(root, 'packages/a/impl.js', 'export const value = "a"')
+  write(
+    root,
+    'packages/b/package.json',
+    JSON.stringify({ name: 'b', imports: { '#dep': './impl.js' } })
+  )
+  write(root, 'packages/b/impl.js', 'export const value = "b"')
+
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  resolvers.reset()
+
+  const importerA = join(root, 'packages/a/index.ts')
+  const importerB = join(root, 'packages/b/index.ts')
+  const [resolveId] = await collect(resolvers.get(importerA))
+
+  // Resolve from A first, then B against the same resolver instance.
+  await expect(resolveId('#dep', importerA)).resolves.toEqual([
+    normalize(realpathSync(join(root, 'packages/a/impl.js'))),
+    true,
+  ])
+  await expect(resolveId('#dep', importerB)).resolves.toEqual([
+    normalize(realpathSync(join(root, 'packages/b/impl.js'))),
+    true,
+  ])
+})
+
 function createProject(
   compilerOptions: Record<string, unknown>,
   config: Record<string, unknown> = {},
