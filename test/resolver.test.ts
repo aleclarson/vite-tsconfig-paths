@@ -9,7 +9,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { normalize } from '../src/path'
-import { createTsconfigResolvers } from '../src/resolver'
+import { createTsconfigResolvers, ensureRelative } from '../src/resolver'
 
 test.each([
   ['allowJs', { allowJs: true }, {}, 'index.js'],
@@ -342,6 +342,49 @@ test('caches resolutions per importer directory, not globally', async () => {
   ])
   await expect(resolveId('#dep', importerB)).resolves.toEqual([
     normalize(realpathSync(join(root, 'packages/b/impl.js'))),
+    true,
+  ])
+})
+
+describe('ensureRelative', () => {
+  test('relativizes absolute entries and keeps one forward-slash flavor', () => {
+    const configDir = normalize('/repo/app')
+
+    // Absolute entry (e.g. from `${configDir}` expansion) -> relative.
+    expect(ensureRelative(configDir, '/repo/app/src/**/*.ts')).toBe(
+      'src/**/*.ts'
+    )
+    // Already-relative entries come back normalized.
+    expect(ensureRelative(configDir, './src/**/*.ts')).toBe('src/**/*.ts')
+    // The result must never carry backslashes into the glob compiler.
+    expect(ensureRelative(configDir, '/repo/app/src/**/*.ts')).not.toMatch(/\\/)
+  })
+})
+
+test('resolves importers when include is an absolute path', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-resolver-'))
+  write(root, 'src/value.ts', 'export const value = true')
+  write(
+    root,
+    'tsconfig.json',
+    JSON.stringify({
+      compilerOptions: { paths: { '@/*': ['./src/*'] } },
+      // Absolute include entry, as `${configDir}` expansion produces.
+      include: [join(root, 'src')],
+    })
+  )
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  resolvers.reset()
+
+  const importer = join(root, 'src/index.ts')
+  const [resolveId] = await collect(resolvers.get(importer))
+  await expect(resolveId('@/value', importer)).resolves.toEqual([
+    normalize(realpathSync(join(root, 'src/value.ts'))),
     true,
   ])
 })
