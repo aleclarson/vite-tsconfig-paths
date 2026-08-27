@@ -1,5 +1,5 @@
 import { readdir } from 'node:fs/promises'
-import { isAbsolute, join, relative } from 'node:path'
+import { join } from 'node:path'
 import { inspect } from 'node:util'
 import { ResolverFactory } from 'oxc-resolver'
 import * as vite from 'vite'
@@ -647,6 +647,18 @@ function compileGlob(glob: string): RegExp {
   return new RegExp('^' + result + '$')
 }
 
-function ensureRelative(dir: string, path: string) {
-  return isAbsolute(path) ? relative(dir, path) : path
+/**
+ * Normalize a tsconfig `include`/`exclude` entry to a path relative to the
+ * config directory, keeping everything in the single (posix) flavor the
+ * rest of this file uses. Absolute entries — e.g. from `${configDir}`
+ * expansion — are made relative; anything already relative is just
+ * normalized. Must use the posix-forced `path.*` helpers, not the
+ * platform `node:path` ones: on Windows the latter emit backslashes,
+ * which `compileGlob` then mistakes for regex escapes.
+ */
+function ensureRelative(dir: NormalizedPath, p: string): NormalizedPath {
+  const normalized = path.normalize(p)
+  return path.isAbsolute(normalized)
+    ? path.relative(dir, normalized)
+    : normalized
 }

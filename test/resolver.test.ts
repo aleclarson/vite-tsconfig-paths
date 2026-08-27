@@ -346,6 +346,42 @@ test('caches resolutions per importer directory, not globally', async () => {
   ])
 })
 
+test.each([
+  {
+    kind: 'absolute',
+    includePath: (root: string) => join(root, 'src'),
+  },
+  {
+    kind: 'relative',
+    includePath: () => './src',
+  },
+])('resolves importers with $kind include paths', async ({ includePath }) => {
+  const root = mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-resolver-'))
+  write(root, 'src/value.ts', 'export const value = true')
+  write(
+    root,
+    'tsconfig.json',
+    JSON.stringify({
+      compilerOptions: { paths: { '@/*': ['./src/*'] } },
+      include: [includePath(root)],
+    })
+  )
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  resolvers.reset()
+
+  const importer = join(root, 'src/index.ts')
+  const [resolveId] = await collect(resolvers.get(importer))
+  await expect(resolveId('@/value', importer)).resolves.toEqual([
+    normalize(realpathSync(join(root, 'src/value.ts'))),
+    true,
+  ])
+})
+
 function createProject(
   compilerOptions: Record<string, unknown>,
   config: Record<string, unknown> = {},
