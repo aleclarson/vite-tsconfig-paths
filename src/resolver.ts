@@ -468,7 +468,18 @@ function createResolver(
       id = id.slice(0, -query.length)
     }
 
-    let resolvedId = resolutionCache.get(id)
+    // `oxcResolver.async` takes the importer's directory, and the result can
+    // depend on it: a `#`-subpath import resolves against the nearest
+    // package.json, `exports`/`imports` and symlinks are package-relative,
+    // etc. This resolver instance is shared by every importer under the
+    // tsconfig, so a cache keyed on `id` alone lets the first importer to
+    // resolve a specifier poison the result for all the others. Key on the
+    // directory too. The \0 byte can't appear in a path or a bare
+    // specifier, so it is a safe separator.
+    const importerDir = path.dirname(importerFile)
+    const cacheKey = importerDir + '\0' + id
+
+    let resolvedId = resolutionCache.get(cacheKey)
     if (resolvedId) {
       logFile?.write('resolvedFromCache', {
         importer,
@@ -479,10 +490,9 @@ function createResolver(
     } else {
       // Coalesce concurrent resolutions for the same specifier to avoid
       // duplicate native calls during parallel pre-bundling.
-      let inflight = inflightResolutions.get(id)
+      let inflight = inflightResolutions.get(cacheKey)
       if (!inflight) {
         inflight = (async () => {
-          const importerDir = path.dirname(importerFile)
           const result = await oxcResolver.async(importerDir, id)
           if (result.path) {
             const resolved = path.normalize(result.path)
@@ -495,13 +505,13 @@ function createResolver(
           }
           return undefined
         })()
-        inflightResolutions.set(id, inflight)
+        inflightResolutions.set(cacheKey, inflight)
       }
 
       try {
         resolvedId = await inflight
       } finally {
-        inflightResolutions.delete(id)
+        inflightResolutions.delete(cacheKey)
       }
 
       if (!resolvedId) {
@@ -515,7 +525,7 @@ function createResolver(
         resolvedId,
         configPath,
       })
-      resolutionCache.set(id, resolvedId)
+      resolutionCache.set(cacheKey, resolvedId)
     }
 
     // If we get a .d.ts file that wasn't explicitly imported, it's because
