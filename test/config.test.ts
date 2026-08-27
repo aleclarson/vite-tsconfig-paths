@@ -167,8 +167,8 @@ describe('createLimiter', () => {
       })
     ).rejects.toThrow('boom')
 
-    // If the slot leaked, this queued task would never run and the promise
-    // would hang until the test times out.
+    // If the slot leaked, this subsequent task would never run and the
+    // promise would hang until the test times out.
     await expect(limit(async () => 'ok')).resolves.toBe('ok')
   })
 })
