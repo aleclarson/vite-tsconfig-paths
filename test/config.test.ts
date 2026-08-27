@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { findAllProjects, loadProjectGraph } from '../src/config'
 import { normalize } from '../src/path'
 
@@ -135,7 +135,7 @@ describe('findAllProjects', () => {
     let release: () => void
     readdirTracker.active = 0
     readdirTracker.maxActive = 0
-    readdirTracker.root = `${root}${sep}`
+    readdirTracker.root = `${normalize(root)}/`
     readdirTracker.wait = new Promise<void>((resolve) => {
       release = resolve
     })
