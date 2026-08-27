@@ -56,7 +56,7 @@ const DIRECTORY_READ_CONCURRENCY = 32
  * Minimal promise concurrency limiter: runs at most `max` tasks at once and
  * queues the rest. Inlined to avoid a `p-limit` dependency.
  */
-function createLimiter(max: number) {
+export function createLimiter(max: number) {
   let active = 0
   const queue: (() => void)[] = []
   const release = () => {
@@ -67,7 +67,15 @@ function createLimiter(max: number) {
     new Promise<T>((resolve, reject) => {
       const run = () => {
         active++
-        task().then(resolve, reject).finally(release)
+        // A task that throws synchronously (rather than returning a
+        // rejected promise) would skip `.finally(release)` and leak its
+        // slot forever, eventually wedging the limiter. Release it here.
+        try {
+          task().then(resolve, reject).finally(release)
+        } catch (error) {
+          release()
+          reject(error)
+        }
       }
       if (active < max) {
         run()

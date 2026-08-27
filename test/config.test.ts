@@ -7,7 +7,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
-import { findAllProjects, loadProjectGraph } from '../src/config'
+import { createLimiter, findAllProjects, loadProjectGraph } from '../src/config'
 import { normalize } from '../src/path'
 
 const readdirTracker = vi.hoisted(() => ({
@@ -154,6 +154,22 @@ describe('findAllProjects', () => {
       release!()
       readdirTracker.root = ''
     }
+  })
+})
+
+describe('createLimiter', () => {
+  test('a synchronously throwing task rejects without leaking its slot', async () => {
+    const limit = createLimiter(1)
+
+    await expect(
+      limit(() => {
+        throw new Error('boom')
+      })
+    ).rejects.toThrow('boom')
+
+    // If the slot leaked, this subsequent task would never run and the
+    // promise would hang until the test times out.
+    await expect(limit(async () => 'ok')).resolves.toBe('ok')
   })
 })
 
