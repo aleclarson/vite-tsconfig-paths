@@ -656,7 +656,7 @@ function compileGlob(glob: string): RegExp {
  * platform `node:path` ones: on Windows the latter emit backslashes,
  * which `compileGlob` then mistakes for regex escapes.
  */
-export function ensureRelative(dir: NormalizedPath, p: string): NormalizedPath {
+function ensureRelative(dir: NormalizedPath, p: string): NormalizedPath {
   const normalized = path.normalize(p)
   return path.isAbsolute(normalized)
     ? path.relative(dir, normalized)

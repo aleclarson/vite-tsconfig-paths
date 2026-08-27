@@ -9,7 +9,7 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { normalize } from '../src/path'
-import { createTsconfigResolvers, ensureRelative } from '../src/resolver'
+import { createTsconfigResolvers } from '../src/resolver'
 
 test.each([
   ['allowJs', { allowJs: true }, {}, 'index.js'],
@@ -346,22 +346,16 @@ test('caches resolutions per importer directory, not globally', async () => {
   ])
 })
 
-describe('ensureRelative', () => {
-  test('relativizes absolute entries and keeps one forward-slash flavor', () => {
-    const configDir = normalize('/repo/app')
-
-    // Absolute entry (e.g. from `${configDir}` expansion) -> relative.
-    expect(ensureRelative(configDir, '/repo/app/src/**/*.ts')).toBe(
-      'src/**/*.ts'
-    )
-    // Already-relative entries come back normalized.
-    expect(ensureRelative(configDir, './src/**/*.ts')).toBe('src/**/*.ts')
-    // The result must never carry backslashes into the glob compiler.
-    expect(ensureRelative(configDir, '/repo/app/src/**/*.ts')).not.toMatch(/\\/)
-  })
-})
-
-test('resolves importers when include is an absolute path', async () => {
+test.each([
+  {
+    kind: 'absolute',
+    includePath: (root: string) => join(root, 'src'),
+  },
+  {
+    kind: 'relative',
+    includePath: () => './src',
+  },
+])('resolves importers with $kind include paths', async ({ includePath }) => {
   const root = mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-resolver-'))
   write(root, 'src/value.ts', 'export const value = true')
   write(
@@ -369,8 +363,7 @@ test('resolves importers when include is an absolute path', async () => {
     'tsconfig.json',
     JSON.stringify({
       compilerOptions: { paths: { '@/*': ['./src/*'] } },
-      // Absolute include entry, as `${configDir}` expansion produces.
-      include: [join(root, 'src')],
+      include: [includePath(root)],
     })
   )
   const resolvers = createTsconfigResolvers({
