@@ -6,9 +6,41 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { findAllProjects, loadProjectGraph } from '../src/config'
 import { normalize } from '../src/path'
+
+const readdirTracker = vi.hoisted(() => ({
+  active: 0,
+  maxActive: 0,
+  root: '',
+  wait: Promise.resolve(),
+}))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+
+  return {
+    ...actual,
+    async readdir(path: string, options: { withFileTypes: true }) {
+      if (!readdirTracker.root || !path.startsWith(readdirTracker.root)) {
+        return actual.readdir(path, options)
+      }
+
+      readdirTracker.active++
+      readdirTracker.maxActive = Math.max(
+        readdirTracker.maxActive,
+        readdirTracker.active
+      )
+      try {
+        await readdirTracker.wait
+        return await actual.readdir(path, options)
+      } finally {
+        readdirTracker.active--
+      }
+    },
+  }
+})
 
 describe('loadProjectGraph', () => {
   test('parses JSONC, multiple extends, packages, symlinks, and configDir', () => {
@@ -92,6 +124,36 @@ describe('findAllProjects', () => {
       'a/jsconfig.json',
       'z/tsconfig.json',
     ])
+  })
+
+  test('limits concurrent directory reads', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-limit-'))
+    for (let index = 0; index < 64; index++) {
+      mkdirSync(join(root, String(index)))
+    }
+
+    let release: () => void
+    readdirTracker.active = 0
+    readdirTracker.maxActive = 0
+    readdirTracker.root = `${root}${sep}`
+    readdirTracker.wait = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    const projects = findAllProjects(root, ['tsconfig.json'], () => false)
+
+    try {
+      await vi.waitFor(() =>
+        expect(readdirTracker.active).toBeGreaterThanOrEqual(32)
+      )
+      release!()
+      await projects
+
+      expect(readdirTracker.maxActive).toBe(32)
+    } finally {
+      release!()
+      readdirTracker.root = ''
+    }
   })
 })
 
