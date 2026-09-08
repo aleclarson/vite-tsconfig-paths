@@ -213,14 +213,13 @@ test.each([
     name: 'explicit test and outDir exclusions',
     exclude: ['**/*.test.ts', 'src/generated'],
   },
+  {
+    name: 'explicit exclude overrides the default outDir exclusion',
+    exclude: ['**/*.test.ts'],
+  },
+  { name: 'empty exclude overrides the default outDir exclusion', exclude: [] },
 ])('$name matches TypeScript root file selection', async ({ exclude }) => {
   await expectFileSelection(exclude)
-})
-
-// Known mismatch: TypeScript only defaults exclude to outDir when exclude
-// is absent. The plugin currently appends outDir even to explicit exclusions.
-test.fails('explicit exclude overrides the default outDir exclusion like TypeScript', async () => {
-  await expectFileSelection(['**/*.test.ts'])
 })
 
 async function expectFileSelection(exclude: string[] | undefined) {

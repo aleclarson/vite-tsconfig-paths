@@ -564,11 +564,12 @@ const defaultExclude = [
  */
 function getIncluder(
   includePaths = defaultInclude,
-  excludePaths = defaultExclude,
+  excludePaths?: string[],
   outDir?: string
 ) {
-  if (outDir) {
-    excludePaths = excludePaths.concat(outDir)
+  // Explicit exclusions replace all defaults, including outDir.
+  if (excludePaths === undefined) {
+    excludePaths = outDir ? defaultExclude.concat(outDir) : defaultExclude
   }
   if (includePaths.length || excludePaths.length) {
     const includers: RegExp[] = []
