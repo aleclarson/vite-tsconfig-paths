@@ -58,7 +58,7 @@ This is being tracked in [#30](https://github.com/aleclarson/vite-tsconfig-paths
 An upstream resolver bug prevents aliases such as `.storybook/*` from resolving,
 even when `paths` maps them to `./.storybook/*`. Use an alias such as
 `@storybook/*` instead; the target directory can still be `.storybook`.
-See the reproduction in [#221](https://github.com/aleclarson/vite-tsconfig-paths/pull/221).
+Track the upstream fix in [oxc-resolver#1360](https://github.com/oxc-project/oxc-resolver/pull/1360).
 
 ### ⚠️ Non-TypeScript modules need special configuration.
 
