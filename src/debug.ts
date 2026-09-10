@@ -1,7 +1,7 @@
-import createDebug from 'debug'
+import { createDebug, enable, type Debugger } from 'obug'
 
-export const debug: createDebug.Debugger = createDebug('vite-tsconfig-paths')
+export const debug: Debugger = createDebug('vite-tsconfig-paths')
 
 if (process.env.TEST === 'vite-tsconfig-paths') {
-  createDebug.enable('vite-tsconfig-paths')
+  enable('vite-tsconfig-paths')
 }

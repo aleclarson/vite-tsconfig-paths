@@ -33,12 +33,11 @@
     "test:typescript-7": "pnpm build && tsx scripts/typescript-7-smoke.ts"
   },
   "dependencies": {
-    "debug": "^4.4.3",
     "get-tsconfig": "5.0.0-beta.6",
+    "obug": "^3.0.0",
     "oxc-resolver": "^11.19.1"
   },
   "devDependencies": {
-    "@types/debug": "^4.1.12",
     "@types/node": "^25.5.0",
     "execa": "^9.6.1",
     "oxc-transform": "^0.119.0",

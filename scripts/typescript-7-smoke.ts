@@ -36,12 +36,11 @@ const viteStub = createStubPackage(
 export const searchForWorkspaceRoot = path => path
 `
 )
-const debugStub = createStubPackage(
-  'debug',
-  '4.4.3',
-  `const createDebug = () => Object.assign(() => {}, { enabled: false })
-createDebug.enable = () => {}
-export default createDebug
+const obugStub = createStubPackage(
+  'obug',
+  '3.0.0',
+  `export const createDebug = () => Object.assign(() => {}, { enabled: false })
+export const enable = () => {}
 `
 )
 const getTsconfigStub = createStubPackage(
@@ -62,7 +61,7 @@ const packageJson = {
   type: 'module',
   pnpm: {
     overrides: {
-      debug: debugStub,
+      obug: obugStub,
       'get-tsconfig': getTsconfigStub,
       'oxc-resolver': oxcResolverStub,
     },
