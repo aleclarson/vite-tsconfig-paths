@@ -76,3 +76,23 @@ After the workflow finishes, check the dist-tags and provenance:
 npm view vite-tsconfig-paths dist-tags --json
 npm view vite-tsconfig-paths@7.0.0-alpha.2 dist.attestations --json
 ```
+
+## Manual compatibility checks
+
+Run these locally before a stable release; they are not part of CI:
+
+```sh
+pnpm check:compat:vite
+pnpm check:compat:node
+```
+
+The first checks the latest releases of Vite 5, 6, and 7 using your current Node
+runtime. The second checks Vite 5–8 using exactly Node 20.20.0. Both build and pack
+the plugin, install it with real dependencies in temporary projects, and check
+alias resolution in dev and production builds with eager and lazy discovery.
+They print the tested versions and fail on installation, resolution, build, or
+timeout errors. These are smoke checks, not the full regression suite.
+
+The checks require network access and npm. The minimum-Node check downloads a
+local Node binary through the `node` npm package. Temporary projects are removed
+on exit; the repository's dependencies and lockfile are unchanged.

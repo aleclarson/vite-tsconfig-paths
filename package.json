@@ -28,6 +28,8 @@
     "lint": "oxlint src/",
     "prepare": "pnpm build",
     "test": "vitest",
+    "check:compat:vite": "pnpm build && tsx scripts/compatibility.ts vite",
+    "check:compat:node": "pnpm build && tsx scripts/compatibility.ts node",
     "test:typescript-7": "pnpm build && tsx scripts/typescript-7-smoke.ts"
   },
   "dependencies": {

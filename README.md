@@ -53,6 +53,13 @@ Due to a Vite limitation, CSS files (and CSS dialects) cannot be resolved with t
 
 This is being tracked in [#30](https://github.com/aleclarson/vite-tsconfig-paths/issues/30).
 
+### ⚠️ Dot-prefixed aliases are not supported in v7.
+
+An upstream resolver bug prevents aliases such as `.storybook/*` from resolving,
+even when `paths` maps them to `./.storybook/*`. Use an alias such as
+`@storybook/*` instead; the target directory can still be `.storybook`.
+See the reproduction in [#221](https://github.com/aleclarson/vite-tsconfig-paths/pull/221).
+
 ### ⚠️ Non-TypeScript modules need special configuration.
 
 To enable path resolution in non-TypeScript modules (e.g. `.vue`, `.svelte`, `.mdx`), you must set the `allowJs` option to true in your `tsconfig.json` file.
