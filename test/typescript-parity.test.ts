@@ -380,7 +380,7 @@ test.each(['eager', 'lazy'] as const)(
 )
 
 function makeRoot() {
-  return realpathSync(
+  return realpathSync.native(
     mkdtempSync(join(tmpdir(), 'vite-tsconfig-paths-parity-'))
   )
 }
