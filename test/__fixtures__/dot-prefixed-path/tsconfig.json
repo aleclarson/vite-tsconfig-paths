@@ -1,0 +1,14 @@
+{
+  "include": ["index.ts", ".storybook"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "rootDir": ".",
+    "paths": {
+      ".storybook/*": ["./.storybook/*"],
+      "*": ["./src/*"]
+    }
+  }
+}
