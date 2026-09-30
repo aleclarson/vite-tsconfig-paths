@@ -41,9 +41,15 @@ export function createTsconfigResolvers({
   logFile?: LogFileWriter | null
   logger: Logger
 }): TsconfigResolvers {
+  let generation = 0
   let initializing: Promise<void> | undefined
   let directoryCache: Map<string, Directory>
   let resolversByProject: WeakMap<Project, Resolver>
+  let unrestrictedResolversByProject: WeakMap<Project, Resolver>
+  // Keep known reference dependencies across resets so deleted configs can be
+  // rediscovered when they are recreated (even with non-discoverable names).
+  const referenceDependencies = new Set<string>()
+  let referenceScopes: WeakMap<Project, (importer: string) => boolean>
   let isFirstParseError = true
   let hasTypeScriptDep = false
 
@@ -110,7 +116,14 @@ export function createTsconfigResolvers({
   let onParseError: ((tsconfigFile: string) => void) | undefined
 
   const addProject = (project: Project, data?: Directory) => {
-    const tsconfigFile = project.tsconfigFile
+    // tsconfck returns native paths for root and extended configs on Windows.
+    // Cache identities, scope calculations, and watcher events use normalized paths.
+    const tsconfigFile = (project.tsconfigFile = path.normalize(
+      project.tsconfigFile
+    ))
+    project.extended?.forEach((parent) => {
+      parent.tsconfigFile = path.normalize(parent.tsconfigFile)
+    })
     const dir = path.normalize(path.dirname(tsconfigFile))
     data ??= directoryCache.get(dir)
 
@@ -124,8 +137,25 @@ export function createTsconfigResolvers({
     // Referenced projects must be added first, so they can override
     // the parent project's paths if both are in the same directory.
     if (project.referenced) {
+      referenceScopes.set(project, getProjectIncluder(project))
+      project.extended?.forEach((parent) => {
+        referenceDependencies.add(parent.tsconfigFile)
+      })
       project.referenced.forEach((projectRef) => {
         addProject(projectRef)
+        referenceDependencies.add(projectRef.tsconfigFile)
+        projectRef.extended?.forEach((parent) => {
+          referenceDependencies.add(parent.tsconfigFile)
+        })
+        // Create an unrestricted resolver (no include/exclude check) for
+        // referenced projects, so importers outside the reference's include
+        // scope can still use its path aliases.
+        if (!unrestrictedResolversByProject.has(projectRef)) {
+          const unrestricted = createResolver(projectRef, opts, logFile, true)
+          if (unrestricted) {
+            unrestrictedResolversByProject.set(projectRef, unrestricted)
+          }
+        }
       })
       // Ensure the latest directory data is used. One of the project
       // references may have updated it.
@@ -151,7 +181,11 @@ export function createTsconfigResolvers({
   }
 
   const loadProject = async (tsconfigFile: string, data?: Directory) => {
+    const loadingGeneration = generation
     const project = await parseProject(tsconfigFile)
+    if (loadingGeneration !== generation) {
+      return
+    }
     if (project) {
       addProject(project, data)
     } else {
@@ -182,6 +216,7 @@ export function createTsconfigResolvers({
   }
 
   const loadEagerProjects = async () => {
+    const loadingGeneration = generation
     let projectPaths: string[]
     if (opts.projects) {
       projectPaths = opts.projects.map((file) => {
@@ -200,6 +235,9 @@ export function createTsconfigResolvers({
       })
     }
 
+    if (loadingGeneration !== generation) {
+      return
+    }
     debug('Eagerly parsing these projects:', projectPaths)
 
     await Promise.all(Array.from(new Set(projectPaths), (p) => loadProject(p)))
@@ -209,16 +247,23 @@ export function createTsconfigResolvers({
   }
 
   const resetResolvers = () => {
+    generation++
     directoryCache = new Map()
     resolversByProject = new WeakMap()
+    unrestrictedResolversByProject = new WeakMap()
+    referenceScopes = new WeakMap()
     initializing = loadEagerProjects()
   }
 
   // Only used when projectDiscovery is 'lazy'.
   const discoverProjects = async (dir: NormalizedPath, data: Directory) => {
+    const loadingGeneration = generation
     debug('Searching directory for tsconfig files:', dir)
     const names = await readdir(dir).catch(() => [])
 
+    if (loadingGeneration !== generation) {
+      return
+    }
     await Promise.all(
       names
         .filter((name) => configNames.includes(name))
@@ -227,6 +272,9 @@ export function createTsconfigResolvers({
         })
     )
 
+    if (loadingGeneration !== generation) {
+      return
+    }
     if (data.projects.length) {
       sortProjects(data.projects)
       if (debug.enabled) {
@@ -276,6 +324,27 @@ export function createTsconfigResolvers({
         if (resolver) {
           yield resolver
         }
+        // When a project uses references (e.g., Nuxt, shared config
+        // packages), the referenced configs may live in sibling
+        // directories that are never visited by this ancestor walk.
+        // Yield their unrestricted resolvers (no include/exclude check)
+        // so importers in the parent scope can use referenced path aliases.
+        if (
+          project.referenced &&
+          referenceScopes.get(project)?.(
+            path.relative(
+              path.dirname(project.tsconfigFile),
+              path.normalize(importer.replace(/[#?].+$/, ''))
+            )
+          )
+        ) {
+          for (const ref of project.referenced) {
+            const refResolver = unrestrictedResolversByProject.get(ref)
+            if (refResolver) {
+              yield refResolver
+            }
+          }
+        }
       }
     }
   }
@@ -297,6 +366,15 @@ export function createTsconfigResolvers({
         !normalizedFile.endsWith('.json') ||
         !path.isAbsolute(normalizedFile)
       ) {
+        return
+      }
+      if (
+        referenceDependencies.has(normalizedFile) &&
+        (event === 'add' || event === 'change' || event === 'unlink')
+      ) {
+        // Parent projects retain parsed reference objects. Reparse the graph
+        // instead of leaving their unrestricted resolvers pointing at old data.
+        resetResolvers()
         return
       }
       if (event === 'add') {
@@ -368,7 +446,8 @@ type ResolverOptions = {
 function createResolver(
   project: Project,
   opts: ResolverOptions,
-  logFile?: LogFileWriter | null
+  logFile?: LogFileWriter | null,
+  skipIncludeCheck?: boolean
 ): Resolver | null {
   const configPath = project.tsconfigFile
   const config = project.tsconfig
@@ -422,20 +501,7 @@ function createResolver(
   })
 
   const configDir = path.normalize(path.dirname(configPath))
-
-  let outDir = compilerOptions.outDir && path.normalize(compilerOptions.outDir)
-
-  // When `tsconfck.parseNative` is used, the outDir is absolute, which
-  // is not what `getIncluder` expects.
-  if (outDir && path.isAbsolute(outDir)) {
-    outDir = path.relative(configDir, outDir)
-  }
-
-  const isIncludedRelative = getIncluder(
-    config.include?.map((p) => ensureRelative(configDir, p)),
-    config.exclude?.map((p) => ensureRelative(configDir, p)),
-    outDir
-  )
+  const isIncludedRelative = getProjectIncluder(project)
 
   const isImporterSupported = opts.loose
     ? () => true
@@ -467,11 +533,14 @@ function createResolver(
       return notApplicable
     }
 
-    // Respect the include/exclude properties.
-    const relativeImporterFile = path.relative(configDir, importerFile)
-    if (!isIncludedRelative(relativeImporterFile)) {
-      logFile?.write('configMismatch', { importer, id, configPath })
-      return notApplicable
+    // Respect the include/exclude properties (skipped for referenced
+    // project resolvers, since the parent project's scope applies).
+    if (!skipIncludeCheck) {
+      const relativeImporterFile = path.relative(configDir, importerFile)
+      if (!isIncludedRelative(relativeImporterFile)) {
+        logFile?.write('configMismatch', { importer, id, configPath })
+        return notApplicable
+      }
     }
 
     // Find and remove special Vite queries (e.g. "?url") if present. If
@@ -552,6 +621,23 @@ function createResolver(
 
     return [resolvedId, true]
   }
+}
+
+function getProjectIncluder(project: Project) {
+  const configDir = path.normalize(path.dirname(project.tsconfigFile))
+  const config = project.tsconfig
+  let outDir =
+    config.compilerOptions?.outDir &&
+    path.normalize(config.compilerOptions.outDir)
+  // parseNative returns absolute paths, while getIncluder expects relative ones.
+  if (outDir && path.isAbsolute(outDir)) {
+    outDir = path.relative(configDir, outDir)
+  }
+  return getIncluder(
+    config.include?.map((p) => ensureRelative(configDir, p)),
+    config.exclude?.map((p) => ensureRelative(configDir, p)),
+    outDir
+  )
 }
 
 const defaultInclude = ['**/*']
