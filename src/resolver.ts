@@ -419,9 +419,15 @@ function createResolver(
   }
 
   const isIncludedRelative = getIncluder(
-    config.include?.map((p) => ensureRelative(configDir, p)),
+    config.include?.map((p) => ensureRelative(configDir, p)) ??
+      (config.files ? [] : undefined),
     config.exclude?.map((p) => ensureRelative(configDir, p)),
     outDir
+  )
+
+  // Explicit files are included independently of include/exclude globs.
+  const includedFiles = new Set(
+    config.files?.map((file) => path.resolve(configDir, path.normalize(file)))
   )
 
   const isImporterSupported = opts.loose
@@ -456,7 +462,10 @@ function createResolver(
 
     // Respect the include/exclude properties.
     const relativeImporterFile = path.relative(configDir, importerFile)
-    if (!isIncludedRelative(relativeImporterFile)) {
+    if (
+      !includedFiles.has(importerFile) &&
+      !isIncludedRelative(relativeImporterFile)
+    ) {
       logFile?.write('configMismatch', { importer, id, configPath })
       return notApplicable
     }
@@ -600,7 +609,7 @@ function getIncluder(
       return includers.some(test) && !excluders.some(test)
     }
   }
-  return () => true
+  return () => false
 }
 
 function addCompiledGlob(this: RegExp[], glob: string) {

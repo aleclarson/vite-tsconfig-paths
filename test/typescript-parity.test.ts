@@ -476,3 +476,33 @@ function startServer(
     optimizeDeps: { noDiscovery: true, include: [] },
   })
 }
+
+test('explicit files override exclude and empty include like TypeScript', async () => {
+  const root = makeRoot()
+  let server: Awaited<ReturnType<typeof createServer>> | undefined
+  try {
+    writeConfig(
+      root,
+      'tsconfig.json',
+      {},
+      {
+        files: ['src/index.ts'],
+        include: [],
+        exclude: ['src'],
+      }
+    )
+    write(root, 'src/index.ts', 'export { value } from "@/value"')
+    write(root, 'src/value.ts', 'export const value = true')
+    const importer = join(root, 'src/index.ts')
+    const config = parseConfig(join(root, 'tsconfig.json'))
+    expect(config.fileNames.map(normalize)).toContain(normalize(importer))
+    const expected = normalize(realpathSync(join(root, 'src/value.ts')))
+    expect(resolveTypescript('@/value', importer, config)).toBe(expected)
+    server = await startServer(root)
+    const result = await server.pluginContainer.resolveId('@/value', importer)
+    expect(result?.id).toBe(expected)
+  } finally {
+    await server?.close()
+    rmSync(root, { recursive: true, force: true })
+  }
+})

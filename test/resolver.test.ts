@@ -432,3 +432,47 @@ async function expectResolution(
     true,
   ])
 }
+
+test('resolves aliases from explicit files even when include is empty and exclude matches', async () => {
+  const root = createProject(
+    {},
+    {
+      files: ['src/index.ts'],
+      include: [],
+      exclude: ['src'],
+    }
+  )
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  resolvers.reset()
+  const importer = join(root, 'src/index.ts')
+  const [resolveId] = await collect(resolvers.get(importer))
+  await expect(resolveId('@/value', importer)).resolves.toEqual([
+    normalize(realpathSync(join(root, 'src/value.ts'))),
+    true,
+  ])
+})
+
+test('files-only configs do not include unlisted importers', async () => {
+  const root = createProject({}, { files: ['src/index.ts'], exclude: [] })
+  const resolvers = createTsconfigResolvers({
+    projects: ['tsconfig.json'],
+    projectRoot: root,
+    workspaceRoot: root,
+    logger: { error() {}, hasErrorLogged: () => false },
+  })
+  resolvers.reset()
+  const importer = join(root, 'src/index.ts')
+  const [resolveId] = await collect(resolvers.get(importer))
+  await expect(resolveId('@/value', importer)).resolves.toEqual([
+    normalize(realpathSync(join(root, 'src/value.ts'))),
+    true,
+  ])
+  await expect(
+    resolveId('@/value', join(root, 'src/unlisted.ts'))
+  ).resolves.toEqual([undefined, false])
+})
