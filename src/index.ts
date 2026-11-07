@@ -78,7 +78,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
       filter: {
         id: /^(?!\.\.|\.\/|\0)/,
       },
-      async handler(id: string, importer: string | undefined) {
+      async handler(id: string, importer: string | undefined, options) {
         if (!importer) {
           logFile?.write('emptyImporter', { importer, id })
           return
@@ -120,7 +120,10 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         for await (const resolveId of tsconfigResolvers.get(importerFile)) {
           const [resolved, matched] = await resolveId(id, importerFile)
           if (resolved) {
-            return resolved
+            return this.resolve(resolved, importer, {
+              ...options,
+              skipSelf: true,
+            })
           }
           if (matched) {
             // Once a matching resolver is found, stop looking.
@@ -129,7 +132,7 @@ export default (opts: PluginOptions = {}): vite.Plugin => {
         }
       },
     },
-  } as const
+  } as const satisfies vite.Plugin
 
-  return plugin satisfies vite.Plugin
+  return plugin
 }
